@@ -245,7 +245,88 @@ final class EloquentProjetoQuery implements ProjetoQuery
         ];
     }
 
-    /** Atividades de projetos não cancelados (base do painel operacional). */
+    public function prazosEEntrega(DateTimeImmutable $hoje, int $meses = 12): array
+    {
+        $meses = max(1, $meses);
+        $inicio = $hoje->modify('first day of this month')->modify('-'.($meses - 1).' months');
+        $fim = $hoje->modify('last day of this month');
+
+        $concluidas = fn () => $this->atividadesOperacionais()
+            ->where('a.status', StatusAtividade::CONCLUIDA->value)
+            ->whereBetween('a.data_termino', [$inicio->format('Y-m-d'), $fim->format('Y-m-d')]);
+        $media = fn ($valor) => $valor === null ? null : round((float) $valor, 1);
+
+        $resumo = $concluidas()
+            ->selectRaw('COUNT(*) as concluidas')
+            ->selectRaw('COUNT(*) FILTER (WHERE a.data_termino <= a.data_limite) as no_prazo')
+            ->selectRaw('AVG(a.data_termino - a.data_inicio) as execucao')
+            ->selectRaw('AVG(a.data_termino - a.data_limite) FILTER (WHERE a.data_termino > a.data_limite) as atraso')
+            ->first();
+
+        $porMes = $concluidas()
+            ->groupByRaw("TO_CHAR(a.data_termino, 'YYYY-MM')")
+            ->selectRaw("TO_CHAR(a.data_termino, 'YYYY-MM') as mes, COUNT(*) as concluidas")
+            ->selectRaw('COUNT(*) FILTER (WHERE a.data_termino <= a.data_limite) as no_prazo')
+            ->get()
+            ->keyBy('mes');
+
+        $serie = [];
+        for ($mes = $inicio; $mes <= $fim; $mes = $mes->modify('+1 month')) {
+            $linha = $porMes->get($mes->format('Y-m'));
+            $total = (int) ($linha->concluidas ?? 0);
+            $noPrazo = (int) ($linha->no_prazo ?? 0);
+            $serie[] = [
+                'mes' => $mes->format('Y-m'),
+                'concluidas' => $total,
+                'no_prazo' => $noPrazo,
+                'percentual_no_prazo' => $total > 0 ? round($noPrazo * 100 / $total, 1) : null,
+            ];
+        }
+
+        $mediaPor = fn (Builder $consulta, string $diferenca) => $consulta
+            ->selectRaw("AVG({$diferenca}) as media, COUNT(*) as atividades")
+            ->orderByDesc('media')
+            ->orderBy('nome')
+            ->get()
+            ->map(fn ($l) => array_filter([
+                'id' => $l->id ?? null,
+                'nome' => $l->nome,
+                'media_dias' => $media($l->media),
+                'atividades' => (int) $l->atividades,
+            ], fn ($v) => $v !== null))
+            ->all();
+
+        $total = (int) $resumo->concluidas;
+        $noPrazo = (int) $resumo->no_prazo;
+
+        return [
+            'inicio' => $inicio->format('Y-m-d'),
+            'fim' => $fim->format('Y-m-d'),
+            'concluidas' => $total,
+            'no_prazo' => $noPrazo,
+            'com_atraso' => $total - $noPrazo,
+            'percentual_no_prazo' => $total > 0 ? round($noPrazo * 100 / $total, 1) : null,
+            'execucao_media_dias' => $media($resumo->execucao),
+            'atraso_medio_dias' => $media($resumo->atraso),
+            'por_mes' => $serie,
+            'execucao_por_tipo' => $mediaPor(
+                $concluidas()->whereNotNull('a.data_inicio')->groupBy('a.tipo')->addSelect('a.tipo as nome'),
+                'a.data_termino - a.data_inicio',
+            ),
+            'atraso_por_tipo' => $mediaPor(
+                $concluidas()->whereColumn('a.data_termino', '>', 'a.data_limite')->groupBy('a.tipo')->addSelect('a.tipo as nome'),
+                'a.data_termino - a.data_limite',
+            ),
+            'atraso_por_am' => $mediaPor(
+                $concluidas()->whereColumn('a.data_termino', '>', 'a.data_limite')
+                    ->join('users as u', 'u.id', '=', 'a.account_manager_id')
+                    ->groupBy('u.id', 'u.name')->addSelect('u.id', 'u.name as nome'),
+                'a.data_termino - a.data_limite',
+            ),
+        ];
+    }
+
+    /** Atividades de projetos não cancelados (base dos dashboards). */
     private function atividadesOperacionais(): Builder
     {
         return DB::table('atividades as a')

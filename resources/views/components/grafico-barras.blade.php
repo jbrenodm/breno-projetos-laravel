@@ -1,7 +1,7 @@
 @props(['titulo', 'subtitulo' => null, 'itens', 'unidade' => 'atividades', 'vazio' => 'Nada a exibir.'])
-@php($maximo = max(array_column($itens, 'total') ?: [1]))
+@php($maximo = max([...array_column($itens, 'total'), 0]) ?: 1) {{-- tudo zero não pode dividir por zero --}}
 {{-- Barras horizontais de uma série: valor na ponta, tooltip ao passar o mouse/foco; a lista é também a visão em tabela.
-     Cada item: id, nome, total e, opcionalmente, url (o nome vira link). --}}
+     Cada item: nome, total e, opcionalmente, url (o nome vira link), exibir (valor formatado) e detalhe (texto do tooltip). --}}
 <div {{ $attributes->class('card shadow-sm h-100 grafico-barras') }}>
     <div class="card-body">
         <h2 class="h6 mb-0">{{ $titulo }}</h2>
@@ -11,7 +11,7 @@
         @else
             <ul class="list-unstyled mb-0" role="list">
                 @foreach ($itens as $item)
-                    @php($rotulo = "{$item['nome']}: {$item['total']} ".($item['total'] === 1 ? rtrim($unidade, 's') : $unidade))
+                    @php($rotulo = $item['detalhe'] ?? "{$item['nome']}: {$item['total']} ".($item['total'] === 1 ? rtrim($unidade, 's') : $unidade))
                     <li class="gb-linha" tabindex="0" aria-label="{{ $rotulo }}">
                         @if (isset($item['url']))
                             <a class="gb-nome text-truncate" href="{{ $item['url'] }}" title="{{ $item['nome'] }}" wire:navigate>{{ $item['nome'] }}</a>
@@ -20,7 +20,7 @@
                         @endif
                         <span class="gb-trilha">
                             <span class="gb-barra" style="width: {{ max(2, round($item['total'] / $maximo * 100, 1)) }}%"></span>
-                            <span class="gb-valor">{{ $item['total'] }}</span>
+                            <span class="gb-valor">{{ $item['exibir'] ?? $item['total'] }}</span>
                         </span>
                         <span class="gb-tooltip" role="tooltip">{{ $rotulo }}</span>
                     </li>

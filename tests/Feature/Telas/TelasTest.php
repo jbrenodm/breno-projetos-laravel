@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Livewire\Dashboards\PainelOperacional;
+use App\Livewire\Dashboards\PrazosEEntrega;
 use App\Livewire\Dashboards\TodasAsAtividades;
 use App\Livewire\Parceiros\Clientes;
 use App\Livewire\Parceiros\Fornecedores;
@@ -285,4 +286,78 @@ it('Dashboards › Painel operacional vazio mostra estados vazios', function () 
     Livewire::test(PainelOperacional::class)
         ->assertSee('Nenhuma atividade atrasada.')
         ->assertSee('Nenhuma atividade vence nos próximos 7 dias.');
+});
+
+it('Dashboards › Prazos e entrega: % no prazo, execução e atraso no período', function () {
+    app()->instance(Relogio::class, new class implements Relogio
+    {
+        public function hoje(): DateTimeImmutable
+        {
+            return new DateTimeImmutable('2026-10-15');
+        }
+    });
+    $outroAm = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create(['name' => 'Bia AM']);
+
+    $projeto = fn () => $this->postJson('/api/v1/projetos', ['cliente_id' => $this->clienteId, 'fornecedores' => [['fornecedor_id' => $this->fornecedorId]]])->json('id');
+    $concluir = fn (string $projetoId, string $tipo, ?string $inicio, string $limite, string $termino, array $extra = []) => $this->postJson("/api/v1/projetos/{$projetoId}/atividades", $extra + [
+        'descricao' => "{$tipo} {$termino}", 'tipo' => $tipo, 'status' => 'Concluída',
+        'data_entrada' => '2025-09-01', 'data_inicio' => $inicio, 'data_limite' => $limite, 'data_termino' => $termino,
+        'account_manager_id' => $this->am->id, 'pre_vendas_id' => $this->pv->id,
+    ])->assertCreated();
+
+    $p = $projeto();
+    $concluir($p, 'Mapeamento', '2026-10-01', '2026-10-10', '2026-10-05');                                               // no prazo, 4 dias
+    $concluir($p, 'Implantação', '2026-10-02', '2026-10-08', '2026-10-12', ['account_manager_id' => $outroAm->id]);       // 4 dias de atraso, 10 de execução
+    $concluir($p, 'Implantação', null, '2026-07-10', '2026-07-20');                                                      // 10 de atraso, sem início
+    $concluir($p, 'Comercial', '2025-09-01', '2025-10-30', '2025-10-20');                                                // fora dos 12 meses
+    $this->postJson("/api/v1/projetos/{$p}/atividades", ['descricao' => 'Aberta', 'tipo' => 'Comercial', 'status' => 'Em Andamento',
+        'data_entrada' => '2026-10-01', 'data_limite' => '2026-10-05'])->assertCreated();                               // aberta não entra
+
+    $cancelado = $projeto();
+    $concluir($cancelado, 'Comercial', '2026-10-01', '2026-10-02', '2026-10-09');
+    $this->postJson("/api/v1/projetos/{$cancelado}/cancelar")->assertOk();
+
+    $dados = app(ProjetoQuery::class)->prazosEEntrega(new DateTimeImmutable('2026-10-15'));
+
+    expect($dados)->toMatchArray([
+        'inicio' => '2025-11-01', 'fim' => '2026-10-31',
+        'concluidas' => 3, 'no_prazo' => 1, 'com_atraso' => 2, 'percentual_no_prazo' => 33.3,
+        'execucao_media_dias' => 7.0, 'atraso_medio_dias' => 7.0,
+    ])
+        ->and($dados['por_mes'])->toHaveCount(12)
+        ->and(collect($dados['por_mes'])->keyBy('mes')->only(['2026-07', '2026-09', '2026-10'])->map(fn ($m) => $m['percentual_no_prazo'])->all())
+        ->toBe(['2026-07' => 0.0, '2026-09' => null, '2026-10' => 50.0])
+        ->and($dados['execucao_por_tipo'])->toBe([
+            ['nome' => 'Implantação', 'media_dias' => 10.0, 'atividades' => 1],
+            ['nome' => 'Mapeamento', 'media_dias' => 4.0, 'atividades' => 1],
+        ])
+        ->and($dados['atraso_por_tipo'])->toBe([['nome' => 'Implantação', 'media_dias' => 7.0, 'atividades' => 2]])
+        ->and($dados['atraso_por_am'])->toBe([
+            ['id' => $this->am->id, 'nome' => 'Ana AM', 'media_dias' => 10.0, 'atividades' => 1],
+            ['id' => $outroAm->id, 'nome' => 'Bia AM', 'media_dias' => 4.0, 'atividades' => 1],
+        ]);
+
+    $this->get('/dashboards/prazos')->assertOk()
+        ->assertSee(['Prazos e entrega', '33,3%', '1 de 3', '7 dias', 'Cumprimento de prazo por mês', 'out/26: 50% no prazo (1 de 2)', 'set/26: sem entregas'])
+        ->assertSeeInOrder(['Atraso médio por Account Manager', 'Ana AM', '10 d', 'Bia AM', '4 d']);
+
+    Livewire::test(PrazosEEntrega::class)
+        ->call('$set', 'meses', 3)
+        ->assertSee(['01/08/2026', '100%', '1 de 2']) // julho sai do período
+        ->assertDontSee('jul/26');
+
+    $this->get('/dashboards/prazos?meses=99')->assertOk()->assertSee('01/11/2025'); // período inválido volta ao padrão
+});
+
+it('Dashboards › Prazos e entrega vazio e com execução de 0 dias não quebra', function () {
+    Livewire::test(PrazosEEntrega::class)
+        ->assertSee(['Nenhuma atividade concluída no período.', 'Nenhuma entrega com atraso no período.']);
+
+    $projetoId = $this->postJson('/api/v1/projetos', ['cliente_id' => $this->clienteId, 'fornecedores' => [['fornecedor_id' => $this->fornecedorId]]])->json('id');
+    $hoje = now()->toDateString();
+    $this->postJson("/api/v1/projetos/{$projetoId}/atividades", ['descricao' => 'Mesmo dia', 'tipo' => 'Comercial', 'status' => 'Concluída',
+        'data_entrada' => $hoje, 'data_inicio' => $hoje, 'data_limite' => $hoje, 'data_termino' => $hoje,
+        'account_manager_id' => $this->am->id, 'pre_vendas_id' => $this->pv->id])->assertCreated();
+
+    $this->get('/dashboards/prazos')->assertOk()->assertSee(['0 dias', '0 d']);
 });

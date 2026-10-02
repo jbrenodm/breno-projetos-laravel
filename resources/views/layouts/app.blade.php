@@ -23,6 +23,8 @@
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item @if(request()->routeIs('dashboards.operacional')) active @endif" href="{{ route('dashboards.operacional') }}" wire:navigate>
                             <i class="bi bi-speedometer2 me-2"></i>Painel operacional</a></li>
+                        <li><a class="dropdown-item @if(request()->routeIs('dashboards.prazos')) active @endif" href="{{ route('dashboards.prazos') }}" wire:navigate>
+                            <i class="bi bi-calendar-check me-2"></i>Prazos e entrega</a></li>
                         <li><a class="dropdown-item @if(request()->routeIs('dashboards.atividades')) active @endif" href="{{ route('dashboards.atividades') }}" wire:navigate>
                             <i class="bi bi-list-check me-2"></i>Todas as atividades</a></li>
                     </ul>

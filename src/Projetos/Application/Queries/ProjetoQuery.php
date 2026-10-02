@@ -47,6 +47,19 @@ interface ProjetoQuery
      */
     public function painelOperacional(DateTimeImmutable $hoje): array;
 
+    /**
+     * Dashboards › Prazos e entrega: atividades concluídas nos últimos $meses meses (inclui o mês de $hoje),
+     * de projetos não cancelados. Percentuais e médias são nulos quando não há base. Ver REQUISITOS.md §9, item 6.
+     *
+     * @return array{inicio: string, fim: string, concluidas: int, no_prazo: int, com_atraso: int, percentual_no_prazo: ?float,
+     *     execucao_media_dias: ?float, atraso_medio_dias: ?float,
+     *     por_mes: list<array{mes: string, concluidas: int, no_prazo: int, percentual_no_prazo: ?float}>,
+     *     execucao_por_tipo: list<array{nome: string, media_dias: float, atividades: int}>,
+     *     atraso_por_tipo: list<array{nome: string, media_dias: float, atividades: int}>,
+     *     atraso_por_am: list<array{id: string, nome: string, media_dias: float, atividades: int}>}
+     */
+    public function prazosEEntrega(DateTimeImmutable $hoje, int $meses = 12): array;
+
     /** RN-14 @return array{account_manager_id: ?string, pre_vendas_id: ?string} */
     public function responsaveisSugeridos(string $projetoId): array;
 }

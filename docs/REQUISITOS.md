@@ -165,6 +165,7 @@ Automação (decidida na fase de desenvolvimento do backend):
 | `ObterResponsaveisSugeridos` (query) | Projetos | RN-14 — AM/PV da última atividade |
 
 | `PainelOperacional` (query) | Projetos | Indicadores do Dashboards › Painel operacional |
+| `PrazosEEntrega` (query) | Projetos | Indicadores do Dashboards › Prazos e entrega |
 | `ListarAtividades` (query) | Projetos | Todas as atividades de todos os projetos (tela Dashboards › Atividades) |
 
 Leituras para telas usam **Queries** (`Application/Queries`), implementadas na Infraestrutura. Escritas **sempre** passam por Casos de Uso.
@@ -211,6 +212,14 @@ app/                 Apresentação: Livewire, Controllers API, FormRequests, Pr
    - Gráficos (barras, do maior para o menor): atrasadas por AM, atrasadas por Cliente e atrasadas por Projeto.
      Projeto é identificado por "Cliente — Código de Oportunidade" ou, sem código, "Cliente — aberto em dd/mm/aaaa".
    - Lista dos próximos vencimentos: até 10 atividades abertas que vencem em 7 dias, pela data limite.
+   Tela "Prazos e entrega" ✅ — responde "estamos entregando no prazo?":
+   - Base: atividades `Concluída` com `data_termino` dentro do período (últimos 3, 6 ou **12 meses — padrão**, contando o mês atual),
+     de projetos **não cancelados**.
+   - **No prazo** = `data_termino` ≤ `data_limite`. **Atraso** = `data_termino − data_limite` em dias (só das entregues com atraso).
+   - **Tempo de execução** = `data_termino − data_inicio` em dias; atividades sem `data_inicio` ficam fora dessa média.
+   - Indicadores: concluídas no período, % no prazo, tempo médio de execução, atraso médio.
+   - Gráficos: % no prazo por mês (linha; mês sem entregas fica sem ponto), tempo médio de execução por tipo,
+     atraso médio por tipo e por AM.
    demais dashboards/relatórios ⏳.
 
 ## 10. Decisões em aberto

@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Dashboards\PainelOperacional;
+use App\Livewire\Dashboards\PrazosEEntrega;
 use App\Livewire\Dashboards\TodasAsAtividades;
 use App\Livewire\Parceiros\Clientes;
 use App\Livewire\Parceiros\Fornecedores;
@@ -14,4 +15,5 @@ Route::livewire('/projetos/{projetoId}', DetalheProjeto::class)->name('projetos.
 Route::livewire('/clientes', Clientes::class)->name('clientes.index');
 Route::livewire('/fornecedores', Fornecedores::class)->name('fornecedores.index');
 Route::livewire('/dashboards/operacional', PainelOperacional::class)->name('dashboards.operacional');
+Route::livewire('/dashboards/prazos', PrazosEEntrega::class)->name('dashboards.prazos');
 Route::livewire('/dashboards/atividades', TodasAsAtividades::class)->name('dashboards.atividades');
