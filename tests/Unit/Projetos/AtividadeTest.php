@@ -90,3 +90,69 @@ it('valida AM/PV como UUID', function () {
     Atividade::registrar(uuid(), 'x', TipoAtividade::COMERCIAL, StatusAtividade::NAO_INICIADA,
         new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30')), 'am-invalido', uuid(), null, dia('2026-10-02'));
 })->throws(RegraDeProjetoException::class);
+
+function editar(Atividade $a, ?PeriodoAtividade $periodo = null, ?string $observacao = null, ?string $usuarioId = null): void
+{
+    $a->editar(
+        ' <i>Descrição corrigida</i> ', TipoAtividade::IMPLANTACAO,
+        $periodo ?? new PeriodoAtividade(dia('2026-08-20'), dia('2026-10-20')),
+        uuid(), uuid(), $observacao, $usuarioId, dia('2026-10-02'),
+    );
+}
+
+it('RN-28: edita descrição, tipo, datas, responsáveis e observação sem mudar o status', function () {
+    $a = atividade(StatusAtividade::EM_ANDAMENTO);
+    editar($a, observacao: 'Nova observação');
+
+    expect($a->getDescricao())->toBe('Descrição corrigida')
+        ->and($a->getTipo())->toBe(TipoAtividade::IMPLANTACAO)
+        ->and($a->getStatus())->toBe(StatusAtividade::EM_ANDAMENTO)
+        ->and($a->getPeriodo()->dataEntrada->format('Y-m-d'))->toBe('2026-08-20')
+        ->and($a->getPeriodo()->dataInicio->format('Y-m-d'))->toBe('2026-08-20') // em andamento sem início → entrada
+        ->and($a->getObservacao()->texto)->toBe('Nova observação');
+});
+
+it('RN-28: atividade concluída pode ser editada (correção de histórico)', function () {
+    $a = atividade(StatusAtividade::CONCLUIDA);
+    editar($a, new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30'), dia('2026-09-03'), dia('2026-09-25')));
+
+    expect($a->getStatus())->toBe(StatusAtividade::CONCLUIDA)
+        ->and($a->getPeriodo()->dataTermino->format('Y-m-d'))->toBe('2026-09-25');
+});
+
+it('RN-28: datas continuam coerentes com o status atual', function () {
+    editar(atividade(StatusAtividade::NAO_INICIADA), new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30'), null, dia('2026-09-10')));
+})->throws(PeriodoInvalidoException::class);
+
+it('RN-28: descrição vazia é rejeitada e nada é alterado', function () {
+    $a = atividade();
+
+    try {
+        $a->editar('<b></b>', TipoAtividade::COMERCIAL, new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30')),
+            uuid(), uuid(), null, null, dia('2026-10-02'));
+    } catch (RegraDeProjetoException) {
+    }
+
+    expect($a->getDescricao())->toBe('Levantar ambiente')
+        ->and($a->getTipo())->toBe(TipoAtividade::MAPEAMENTO);
+});
+
+it('RN-28: observação vazia remove a existente', function () {
+    $a = atividade(obs: new Observacao('Antiga'));
+    editar($a, observacao: '');
+
+    expect($a->getObservacao())->toBeNull();
+});
+
+it('RN-28/RN-20: observação de outro autor não pode ser alterada', function () {
+    $a = atividade(obs: new Observacao('Do autor', uuid()));
+    editar($a, observacao: 'Intruso', usuarioId: uuid());
+})->throws(ObservacaoNaoPermitidaException::class);
+
+it('RN-28/RN-20: manter a observação de outro autor não bloqueia a edição', function () {
+    $autor = uuid();
+    $a = atividade(obs: new Observacao('Do autor', $autor));
+    editar($a, observacao: 'Do autor', usuarioId: uuid());
+
+    expect($a->getObservacao()->autorId)->toBe($autor);
+});

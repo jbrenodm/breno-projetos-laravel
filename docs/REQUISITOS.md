@@ -47,6 +47,9 @@ O contexto Projetos conhece os outros **apenas por ID** (ClienteId, FornecedorId
 - **RN-05** A Solução vinculada deve pertencer ao Fornecedor do mesmo vínculo.
 - **RN-06** Só é possível abrir Projeto para Cliente **ativo** e Fornecedores **ativos**.
 - **RN-07** O Projeto **nasce sem atividades e sem AM/PV** na raiz, com status `Não Iniciado`.
+- **RN-29 (troca de cliente)** O Cliente do Projeto pode ser trocado em qualquer status, exceto `Cancelado` (RN-11).
+  O novo Cliente deve estar **ativo** (RN-06). A troca vale para o projeto inteiro (as atividades não têm cliente próprio).
+  *(Decidido em 02/10/2026.)*
 
 ### 4.2 Status do Projeto (macro-status)
 Valores: `Não Iniciado`, `Em Andamento`, `Parado`, `Concluído`, `Cancelado`.
@@ -83,6 +86,16 @@ Automação (decidida na fase de desenvolvimento do backend):
 - **RN-19** `tipo` da atividade: `Mapeamento`, `Homologação`, `Implantação`, `Comercial` (obrigatório).
 - **RN-20** Observação da atividade: texto opcional, sanitizado, com **autor**. Só o autor pode editá-la
   (regra ativa quando o login estiver implementado — ver Roadmap).
+- **RN-28 (edição de atividade)** Uma atividade pode ser editada, inclusive quando `Concluída` (correção de histórico).
+  - Campos editáveis: `descricao`, `tipo`, datas (`data_entrada`, `data_limite`, `data_inicio`, `data_termino`),
+    AM/PV e observação.
+  - O **status não é editável** aqui: muda apenas pelas transições da RN-16.
+  - As datas seguem a RN-18 e a coerência com o status atual, igual ao registro: `Não Iniciada` não tem início;
+    só `Concluída` tem término; `Em Andamento`/`Parada` sem início assumem a `data_entrada`; `Concluída` sem término assume hoje.
+  - AM e PV continuam obrigatórios (RN-13) e, se trocados, devem ser usuários ativos com o papel correspondente (RN-25).
+  - A observação pode ser alterada ou removida; a restrição por autor (RN-20) passa a valer quando houver login.
+  - Projeto `Cancelado` não permite editar atividades (RN-11).
+  *(Decidido em 02/10/2026.)*
 
 ### 4.4 Cliente e Fornecedor
 - **RN-21** Cliente e Fornecedor: `razao_social` obrigatória; `nome_fantasia` e `cnpj` **opcionais**.
@@ -100,7 +113,7 @@ Automação (decidida na fase de desenvolvimento do backend):
 ```
 [Agregado: Projeto]  (src/Projetos/Domain)
 ├── ProjetoId (VO, UUID)
-├── ClienteId (string UUID)
+├── ClienteId (string UUID) — trocável (RN-29)
 ├── CodigoOportunidade (VO, opcional)
 ├── StatusProjeto (enum)
 ├── VinculoFornecedor[] (VO: fornecedorId, solucaoId?)  — mínimo 1
@@ -147,6 +160,8 @@ Automação (decidida na fase de desenvolvimento do backend):
 | `RegistrarNovaAtividade` | Projetos | RN-12..20 |
 | `AlterarStatusAtividade` | Projetos | RN-16, RN-18 (inclui concluir) |
 | `CancelarProjeto` | Projetos | RN-11 |
+| `EditarAtividade` | Projetos | RN-28 |
+| `AlterarClienteDoProjeto` | Projetos | RN-29 |
 | `ObterResponsaveisSugeridos` (query) | Projetos | RN-14 — AM/PV da última atividade |
 
 Leituras para telas usam **Queries** (`Application/Queries`), implementadas na Infraestrutura. Escritas **sempre** passam por Casos de Uso.
@@ -179,7 +194,7 @@ app/                 Apresentação: Livewire, Controllers API, FormRequests, Pr
 2. ✅ Realinhamento aos requisitos (este documento) + ambiente Ubuntu 26.04.
 3. ⏳ Autenticação (login) + papéis + regra de observação por autor + BOLA (carteira do AM).
 4. ⏳ Telas de cadastro de Clientes, Fornecedores/Soluções e Usuários.
-5. ⏳ Edição de atividade (descrição, datas, responsáveis) e de Código de Oportunidade.
+5. 🔶 Edição de atividade (RN-28) e troca de cliente do projeto (RN-29) ✅; edição de Código de Oportunidade ⏳.
 
 ## 10. Decisões em aberto
 

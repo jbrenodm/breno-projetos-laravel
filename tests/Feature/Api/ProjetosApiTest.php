@@ -143,3 +143,91 @@ it('ignora campos extras (sem mass assignment)', function () {
 
     $this->assertDatabaseHas('projetos', ['id' => $id, 'status' => 'Não Iniciado']);
 });
+
+function edicaoPayload($test, array $extra = []): array
+{
+    return $extra + [
+        'descricao' => 'Kickoff remarcado',
+        'tipo' => 'Mapeamento',
+        'data_entrada' => '2026-09-30',
+        'data_limite' => '2026-10-20',
+        'account_manager_id' => $test->am->id,
+        'pre_vendas_id' => $test->pv->id,
+        'observacao' => 'Cliente pediu nova data',
+    ];
+}
+
+it('edita atividade e mantém o status (RN-28)', function () {
+    $id = criarProjetoViaApi($this);
+    $a = $this->postJson("/api/v1/projetos/{$id}/atividades", atividadePayload($this))->json('id');
+
+    $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this, ['status' => 'Concluída']))->assertOk();
+
+    $this->assertDatabaseHas('atividades', [
+        'id' => $a, 'descricao' => 'Kickoff remarcado', 'tipo' => 'Mapeamento', 'status' => 'Não Iniciada',
+        'observacao' => 'Cliente pediu nova data', 'sequencia' => 1,
+    ]);
+    expect(DB::table('atividades')->where('id', $a)->value('data_limite'))->toStartWith('2026-10-20');
+});
+
+it('edita atividade concluída corrigindo o término (RN-28)', function () {
+    $id = criarProjetoViaApi($this);
+    $a = $this->postJson("/api/v1/projetos/{$id}/atividades", atividadePayload($this, ['status' => 'Concluída']))->json('id');
+
+    $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this, ['data_termino' => '2026-10-01']))->assertOk();
+
+    expect(DB::table('atividades')->where('id', $a)->value('data_termino'))->toStartWith('2026-10-01');
+    $this->assertDatabaseHas('projetos', ['id' => $id, 'status' => 'Concluído']);
+});
+
+it('rejeita edição com PV sem o papel e com datas inválidas (RN-25/RN-18)', function () {
+    $id = criarProjetoViaApi($this);
+    $a = $this->postJson("/api/v1/projetos/{$id}/atividades", atividadePayload($this))->json('id');
+
+    $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this, ['pre_vendas_id' => $this->am->id]))
+        ->assertUnprocessable();
+    $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this, ['data_limite' => '2026-09-01']))
+        ->assertUnprocessable();
+    $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this, ['account_manager_id' => null]))
+        ->assertUnprocessable();
+
+    $this->assertDatabaseHas('atividades', ['id' => $a, 'descricao' => 'Reunião de kickoff']);
+});
+
+it('permite editar atividade cujo AM ficou inativo, se ele não for trocado', function () {
+    $id = criarProjetoViaApi($this);
+    $a = $this->postJson("/api/v1/projetos/{$id}/atividades", atividadePayload($this))->json('id');
+    $this->am->update(['ativo' => false]);
+
+    $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this))->assertOk();
+});
+
+it('não edita atividade de projeto cancelado (RN-11)', function () {
+    $id = criarProjetoViaApi($this);
+    $a = $this->postJson("/api/v1/projetos/{$id}/atividades", atividadePayload($this))->json('id');
+    $this->postJson("/api/v1/projetos/{$id}/cancelar")->assertOk();
+
+    $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this))->assertUnprocessable();
+});
+
+it('troca o cliente do projeto (RN-29) e rejeita cliente inativo (RN-06)', function () {
+    $id = criarProjetoViaApi($this);
+    $novo = app(CadastrarCliente::class)->execute(new CadastrarClienteInput('Novo Cliente S.A.'));
+    $inativo = app(CadastrarCliente::class)->execute(new CadastrarClienteInput('Inativo S.A.'));
+    DB::table('clientes')->where('id', $inativo)->update(['ativo' => false]);
+
+    $this->patchJson("/api/v1/projetos/{$id}/cliente", ['cliente_id' => $novo])->assertOk();
+    $this->assertDatabaseHas('projetos', ['id' => $id, 'cliente_id' => $novo]);
+
+    $this->patchJson("/api/v1/projetos/{$id}/cliente", ['cliente_id' => $inativo])->assertUnprocessable();
+    $this->patchJson("/api/v1/projetos/{$id}/cliente", ['cliente_id' => (string) Str::uuid()])->assertUnprocessable();
+    $this->assertDatabaseHas('projetos', ['id' => $id, 'cliente_id' => $novo]);
+});
+
+it('não troca cliente de projeto cancelado (RN-11/RN-29)', function () {
+    $id = criarProjetoViaApi($this);
+    $novo = app(CadastrarCliente::class)->execute(new CadastrarClienteInput('Novo Cliente S.A.'));
+    $this->postJson("/api/v1/projetos/{$id}/cancelar")->assertOk();
+
+    $this->patchJson("/api/v1/projetos/{$id}/cliente", ['cliente_id' => $novo])->assertUnprocessable();
+});

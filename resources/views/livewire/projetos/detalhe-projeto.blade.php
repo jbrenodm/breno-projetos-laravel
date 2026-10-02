@@ -1,5 +1,6 @@
 @php
     $cancelado = $projeto['status'] === 'Cancelado';
+    $editando = $atividadeEditandoId !== null;
     $fmt = fn (?string $d) => $d ? \Illuminate\Support\Carbon::parse($d)->format('d/m/Y') : '—';
 @endphp
 <div>
@@ -7,7 +8,24 @@
 
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mt-2 mb-3">
         <div>
-            <h1 class="h3 mb-1">{{ $projeto['cliente'] }} <x-status-badge :status="$projeto['status']" class="fs-6 align-middle" /></h1>
+            <h1 class="h3 mb-1">{{ $projeto['cliente'] }} <x-status-badge :status="$projeto['status']" class="fs-6 align-middle" />
+                @if (! $cancelado && ! $trocandoCliente)
+                    <button class="btn btn-sm btn-link text-decoration-none align-middle" wire:click="abrirTrocaDeCliente"><i class="bi bi-pencil"></i> Trocar cliente</button>
+                @endif
+            </h1>
+            @if ($trocandoCliente)
+                <form class="d-flex flex-wrap gap-2 align-items-start my-2" wire:submit="salvarCliente">
+                    <div>
+                        <select class="form-select form-select-sm @error('novoClienteId') is-invalid @enderror" wire:model="novoClienteId">
+                            <option value="">Selecione…</option>
+                            @foreach ($clientes as $c) <option value="{{ $c['id'] }}">{{ $c['nome'] }}</option> @endforeach
+                        </select>
+                        @error('novoClienteId') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+                    <button class="btn btn-sm btn-primary">Salvar</button>
+                    <button type="button" class="btn btn-sm btn-light" wire:click="cancelarTrocaDeCliente">Cancelar</button>
+                </form>
+            @endif
             <div class="text-muted small">
                 Oportunidade: <strong>{{ $projeto['codigo_oportunidade'] ?? '—' }}</strong>
                 · ID interno: <code>{{ $projeto['id'] }}</code>
@@ -39,8 +57,8 @@
 
     @if ($mostrarFormulario)
         <div class="card shadow-sm mb-4 border-primary">
-            <div class="card-header bg-primary-subtle fw-semibold">Nova atividade</div>
-            <form class="card-body" wire:submit="registrarAtividade">
+            <div class="card-header bg-primary-subtle fw-semibold">{{ $editando ? 'Editar atividade' : 'Nova atividade' }}</div>
+            <form class="card-body" wire:submit="{{ $editando ? 'salvarEdicao' : 'registrarAtividade' }}">
                 <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label">Descrição <span class="text-danger">*</span></label>
@@ -56,9 +74,10 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Status <span class="text-danger">*</span></label>
-                        <select class="form-select" wire:model.live="status">
+                        <select class="form-select" wire:model.live="status" @disabled($editando)>
                             @foreach ($statusPossiveis as $s) <option value="{{ $s->value }}">{{ $s->value }}</option> @endforeach
                         </select>
+                        @if ($editando) <div class="form-text">Use os botões de status da atividade.</div> @endif
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Account Manager <span class="text-danger">*</span></label>
@@ -77,7 +96,9 @@
                         @error('preVendasId') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-12 small text-muted mt-0">
-                        @if ($primeiraAtividade)
+                        @if ($editando)
+                            <i class="bi bi-info-circle"></i> Alterações em atividades concluídas corrigem o histórico.
+                        @elseif ($primeiraAtividade)
                             <i class="bi bi-info-circle"></i> Primeira atividade do projeto: informe o Account Manager e o Pré-vendas.
                         @else
                             <i class="bi bi-info-circle"></i> AM e PV pré-preenchidos com os da última atividade — altere se necessário.
@@ -118,7 +139,7 @@
                 <div class="mt-4 d-flex gap-2 justify-content-end">
                     <button type="button" class="btn btn-light" wire:click="fecharFormulario">Cancelar</button>
                     <button type="submit" class="btn btn-primary" wire:loading.attr="disabled">
-                        <span wire:loading wire:target="registrarAtividade" class="spinner-border spinner-border-sm me-1"></span>Registrar atividade
+                        <span wire:loading wire:target="registrarAtividade,salvarEdicao" class="spinner-border spinner-border-sm me-1"></span>{{ $editando ? 'Salvar alterações' : 'Registrar atividade' }}
                     </button>
                 </div>
             </form>
@@ -154,6 +175,11 @@
                         </div>
                         <div class="text-end">
                             <x-status-badge :status="$a['status']" />
+                            @if (! $cancelado && $atividadeEditandoId !== $a['id'])
+                                <button class="btn btn-sm btn-link text-decoration-none p-0 ms-2" wire:click="editarAtividade('{{ $a['id'] }}')" title="Editar atividade">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </button>
+                            @endif
                             @if (! $cancelado && $a['proximos_status'] && $atividadeEmEdicao !== $a['id'])
                                 <div class="btn-group btn-group-sm mt-2 d-flex">
                                     @foreach ($a['proximos_status'] as $proximo)

@@ -109,3 +109,40 @@ it('RN-11: projeto cancelado não aceita alterações', function () {
 it('falha ao alterar atividade de outro projeto', function () {
     novoProjeto()->alterarStatusAtividade(uuid(), StatusAtividade::CONCLUIDA, null, dia('2026-10-02'));
 })->throws(AtividadeNaoEncontradaException::class);
+
+it('RN-28: edita atividade pelo agregado', function () {
+    $p = novoProjeto();
+    $id = adicionar($p, am: uuid(), pv: uuid());
+    $novoAm = uuid();
+
+    $p->editarAtividade($id, 'Editada', TipoAtividade::COMERCIAL, new PeriodoAtividade(dia('2026-10-01'), dia('2026-10-20')),
+        $novoAm, uuid(), null, null, dia('2026-10-02'));
+
+    expect($p->buscarAtividade($id)->getAccountManagerId())->toBe($novoAm)
+        ->and($p->responsaveisSugeridos()['account_manager_id'])->toBe($novoAm); // RN-14 usa os dados atuais
+});
+
+it('RN-11/RN-28: projeto cancelado não permite editar atividade', function () {
+    $p = novoProjeto();
+    $id = adicionar($p, am: uuid(), pv: uuid());
+    $p->cancelar();
+
+    $p->editarAtividade($id, 'Editada', TipoAtividade::COMERCIAL, new PeriodoAtividade(dia('2026-10-01'), dia('2026-10-20')),
+        uuid(), uuid(), null, null, dia('2026-10-02'));
+})->throws(ProjetoCanceladoException::class);
+
+it('RN-29: troca o cliente, inclusive de projeto concluído', function () {
+    $p = novoProjeto();
+    adicionar($p, StatusAtividade::CONCLUIDA, uuid(), uuid());
+    $novo = uuid();
+    $p->alterarCliente($novo);
+
+    expect($p->getClienteId())->toBe($novo)
+        ->and($p->getStatus())->toBe(StatusProjeto::CONCLUIDO);
+});
+
+it('RN-11/RN-29: projeto cancelado não troca de cliente', function () {
+    $p = novoProjeto();
+    $p->cancelar();
+    $p->alterarCliente(uuid());
+})->throws(ProjetoCanceladoException::class);

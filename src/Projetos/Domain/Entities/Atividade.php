@@ -24,12 +24,12 @@ final class Atividade
 
     private function __construct(
         private readonly string $id,
-        private readonly string $descricao,
-        private readonly TipoAtividade $tipo,
+        private string $descricao,
+        private TipoAtividade $tipo,
         private StatusAtividade $status,
         private PeriodoAtividade $periodo,
-        private readonly string $accountManagerId,
-        private readonly string $preVendasId,
+        private string $accountManagerId,
+        private string $preVendasId,
         private ?Observacao $observacao,
     ) {}
 
@@ -96,6 +96,34 @@ final class Atividade
         $this->status = $novoStatus;
     }
 
+    /**
+     * RN-28: edita os dados da atividade (inclusive concluída). O status não muda aqui (RN-16).
+     * Observação nula/vazia remove a existente; a restrição por autor segue a RN-20.
+     */
+    public function editar(
+        string $descricao,
+        TipoAtividade $tipo,
+        PeriodoAtividade $periodo,
+        string $accountManagerId,
+        string $preVendasId,
+        ?string $observacao,
+        ?string $usuarioId,
+        DateTimeImmutable $hoje,
+    ): void {
+        $descricao = self::validarDescricao($descricao);
+        self::validarResponsavel($accountManagerId, 'Account Manager');
+        self::validarResponsavel($preVendasId, 'Pré-vendas');
+        $periodo = self::ajustarPeriodoAoStatus($this->status, $periodo, $hoje);
+        $novaObservacao = $this->observacaoEditada($observacao, $usuarioId);
+
+        $this->descricao = $descricao;
+        $this->tipo = $tipo;
+        $this->periodo = $periodo;
+        $this->accountManagerId = $accountManagerId;
+        $this->preVendasId = $preVendasId;
+        $this->observacao = $novaObservacao;
+    }
+
     /** RN-20 */
     public function registrarObservacao(string $texto, ?string $usuarioId): void
     {
@@ -104,6 +132,22 @@ final class Atividade
         }
 
         $this->observacao = new Observacao($texto, $this->observacao?->autorId ?? $usuarioId);
+    }
+
+    private function observacaoEditada(?string $texto, ?string $usuarioId): ?Observacao
+    {
+        $atual = $this->observacao;
+        $nova = Observacao::opcional($texto, $atual?->autorId ?? $usuarioId);
+
+        if ($nova?->texto === $atual?->texto) {
+            return $atual;
+        }
+
+        if ($atual !== null && ! $atual->podeSerEditadaPor($usuarioId)) {
+            throw new ObservacaoNaoPermitidaException('Somente o autor pode alterar a observação desta atividade.');
+        }
+
+        return $nova;
     }
 
     private static function ajustarPeriodoAoStatus(StatusAtividade $status, PeriodoAtividade $periodo, DateTimeImmutable $hoje): PeriodoAtividade

@@ -10,7 +10,9 @@ Route::prefix('v1')->group(function (): void {
     Route::post('projetos', [ProjetoController::class, 'registrar']);
     Route::get('projetos/{projetoId}', [ProjetoController::class, 'detalhar']);
     Route::post('projetos/{projetoId}/cancelar', [ProjetoController::class, 'cancelar']);
+    Route::patch('projetos/{projetoId}/cliente', [ProjetoController::class, 'alterarCliente']);
     Route::post('projetos/{projetoId}/atividades', [ProjetoController::class, 'registrarAtividade']);
+    Route::put('projetos/{projetoId}/atividades/{atividadeId}', [ProjetoController::class, 'editarAtividade']);
     Route::patch('projetos/{projetoId}/atividades/{atividadeId}/status', [ProjetoController::class, 'alterarStatusAtividade']);
 
     Route::get('clientes', [ParceiroController::class, 'listarClientes']);

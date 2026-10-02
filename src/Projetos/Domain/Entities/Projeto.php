@@ -31,7 +31,7 @@ final class Projeto
      */
     private function __construct(
         private readonly ProjetoId $id,
-        private readonly string $clienteId,
+        private string $clienteId,
         private array $fornecedores,
         private StatusProjeto $status,
         private ?CodigoOportunidade $codigoOportunidade,
@@ -125,6 +125,36 @@ final class Projeto
         $this->recalcularStatus();
     }
 
+    /** RN-28 */
+    public function editarAtividade(
+        string $atividadeId,
+        string $descricao,
+        TipoAtividade $tipo,
+        PeriodoAtividade $periodo,
+        string $accountManagerId,
+        string $preVendasId,
+        ?string $observacao,
+        ?string $usuarioId,
+        DateTimeImmutable $hoje,
+    ): void {
+        $this->garantirQueNaoEstaCancelado();
+        $this->buscarAtividade($atividadeId)->editar(
+            $descricao, $tipo, $periodo, $accountManagerId, $preVendasId, $observacao, $usuarioId, $hoje,
+        );
+    }
+
+    /** RN-29: a verificação de cliente ativo (RN-06) fica no caso de uso. */
+    public function alterarCliente(string $clienteId): void
+    {
+        $this->garantirQueNaoEstaCancelado();
+
+        if (! Uuid::ehValido($clienteId)) {
+            throw new RegraDeProjetoException('O cliente do projeto é obrigatório.');
+        }
+
+        $this->clienteId = $clienteId;
+    }
+
     /** RN-20 */
     public function registrarObservacao(string $atividadeId, string $texto, ?string $usuarioId): void
     {
@@ -180,7 +210,7 @@ final class Projeto
         $this->status = StatusProjeto::CONCLUIDO;
     }
 
-    private function buscarAtividade(string $atividadeId): Atividade
+    public function buscarAtividade(string $atividadeId): Atividade
     {
         foreach ($this->atividades as $atividade) {
             if ($atividade->getId() === $atividadeId) {

@@ -114,3 +114,42 @@ it('cadastra cliente e fornecedor pelas telas', function () {
         ->assertHasNoErrors()
         ->assertSee('VPN');
 });
+
+it('edita atividade e troca o cliente pela tela de detalhe (RN-28/RN-29)', function () {
+    $this->post('/api/v1/projetos', ['cliente_id' => $this->clienteId, 'fornecedores' => [['fornecedor_id' => $this->fornecedorId]]]);
+    $projetoId = DB::table('projetos')->value('id');
+    $outroAm = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create(['name' => 'Bia AM']);
+    $novoCliente = app(CadastrarCliente::class)->execute(new CadastrarClienteInput('Varejo Novo S.A.', 'Varejo Novo'));
+
+    $tela = Livewire::test(DetalheProjeto::class, ['projetoId' => $projetoId])
+        ->call('abrirFormulario')
+        ->set('descricao', 'Levantamento')
+        ->set('dataLimite', now()->addDays(10)->toDateString())
+        ->set('accountManagerId', $this->am->id)
+        ->set('preVendasId', $this->pv->id)
+        ->call('registrarAtividade');
+
+    $atividadeId = DB::table('atividades')->value('id');
+
+    $tela->call('editarAtividade', $atividadeId)
+        ->assertSet('descricao', 'Levantamento')
+        ->assertSet('accountManagerId', $this->am->id)
+        ->assertSee('Editar atividade')
+        ->set('descricao', 'Levantamento revisado')
+        ->set('accountManagerId', $outroAm->id)
+        ->call('salvarEdicao')
+        ->assertHasNoErrors()
+        ->assertSet('mostrarFormulario', false)
+        ->assertSee('Levantamento revisado')
+        ->assertSee('Bia AM');
+
+    $tela->call('abrirTrocaDeCliente')
+        ->assertSee('Varejo Novo')
+        ->set('novoClienteId', $novoCliente)
+        ->call('salvarCliente')
+        ->assertHasNoErrors()
+        ->assertSee('Varejo Novo');
+
+    $this->assertDatabaseHas('atividades', ['id' => $atividadeId, 'descricao' => 'Levantamento revisado', 'account_manager_id' => $outroAm->id]);
+    $this->assertDatabaseHas('projetos', ['id' => $projetoId, 'cliente_id' => $novoCliente]);
+});
