@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Src\Projetos\Infrastructure\Queries;
 
+use DateTimeImmutable;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Src\Projetos\Application\Queries\FiltroAtividades;
 use Src\Projetos\Application\Queries\OrdenacaoAtividades;
 use Src\Projetos\Application\Queries\ProjetoQuery;
 use Src\Projetos\Domain\ValueObjects\StatusAtividade;
+use Src\Projetos\Domain\ValueObjects\StatusProjeto;
 use Src\Shared\Domain\Uuid;
 
 /** Leitura otimizada via Query Builder (sem hidratar o agregado). */
@@ -161,6 +164,93 @@ final class EloquentProjetoQuery implements ProjetoQuery
             'account_manager' => $a->account_manager,
             'pre_vendas' => $a->pre_vendas,
         ])->all();
+    }
+
+    public function painelOperacional(DateTimeImmutable $hoje): array
+    {
+        $dia = $hoje->format('Y-m-d');
+        $daquiA7Dias = $hoje->modify('+7 days')->format('Y-m-d');
+        $concluida = StatusAtividade::CONCLUIDA->value;
+
+        $indicadores = $this->atividadesOperacionais()
+            ->selectRaw('COUNT(*) FILTER (WHERE a.status <> ?) as abertas', [$concluida])
+            ->selectRaw('COUNT(*) FILTER (WHERE a.status <> ? AND a.data_limite < ?) as atrasadas', [$concluida, $dia])
+            ->selectRaw('COUNT(*) FILTER (WHERE a.status <> ? AND a.data_limite BETWEEN ? AND ?) as vencem', [$concluida, $dia, $daquiA7Dias])
+            ->selectRaw('COUNT(*) FILTER (WHERE a.status = ? AND a.data_termino BETWEEN ? AND ?) as concluidas_no_mes',
+                [$concluida, $hoje->modify('first day of this month')->format('Y-m-d'), $hoje->modify('last day of this month')->format('Y-m-d')])
+            ->first();
+
+        $atrasadas = fn () => $this->atividadesOperacionais()
+            ->where('a.status', '<>', $concluida)
+            ->where('a.data_limite', '<', $dia)
+            ->orderByDesc('total');
+        $agrupar = fn (Builder $consulta) => $consulta->get()
+            ->map(fn ($l) => ['id' => $l->id, 'nome' => $l->nome, 'total' => (int) $l->total])
+            ->all();
+
+        $porAm = $atrasadas()
+            ->join('users as u', 'u.id', '=', 'a.account_manager_id')
+            ->groupBy('u.id', 'u.name')
+            ->orderBy('u.name')
+            ->selectRaw('u.id, u.name as nome, COUNT(*) as total');
+
+        $porCliente = $atrasadas()
+            ->join('clientes as c', 'c.id', '=', 'p.cliente_id')
+            ->groupBy('c.id', 'c.nome_fantasia', 'c.razao_social')
+            ->orderByRaw(self::NOME_CLIENTE)
+            ->selectRaw('c.id, '.self::NOME_CLIENTE.' as nome, COUNT(*) as total');
+
+        $porProjeto = $atrasadas()
+            ->join('clientes as c', 'c.id', '=', 'p.cliente_id')
+            ->groupBy('p.id', 'p.codigo_oportunidade', 'p.created_at', 'c.nome_fantasia', 'c.razao_social')
+            ->orderByRaw(self::NOME_CLIENTE)
+            ->orderBy('p.created_at')
+            ->selectRaw('p.id, '.self::NOME_CLIENTE." || ' — ' || COALESCE(p.codigo_oportunidade, 'aberto em ' || TO_CHAR(p.created_at, 'DD/MM/YYYY')) as nome, COUNT(*) as total");
+
+        $proximos = $this->atividadesOperacionais()
+            ->join('clientes as c', 'c.id', '=', 'p.cliente_id')
+            ->join('users as am', 'am.id', '=', 'a.account_manager_id')
+            ->join('users as pv', 'pv.id', '=', 'a.pre_vendas_id')
+            ->where('a.status', '<>', $concluida)
+            ->whereBetween('a.data_limite', [$dia, $daquiA7Dias])
+            ->orderBy('a.data_limite')
+            ->orderByRaw(self::NOME_CLIENTE)
+            ->limit(10)
+            ->selectRaw('a.id, a.projeto_id, a.descricao, a.tipo, a.status, a.data_limite, '.self::NOME_CLIENTE.' as cliente')
+            ->addSelect('am.name as account_manager', 'pv.name as pre_vendas')
+            ->get()
+            ->map(fn ($a) => [
+                'id' => $a->id,
+                'projeto_id' => $a->projeto_id,
+                'cliente' => $a->cliente,
+                'descricao' => $a->descricao,
+                'tipo' => $a->tipo,
+                'status' => $a->status,
+                'data_limite' => substr((string) $a->data_limite, 0, 10),
+                'dias_restantes' => (int) $hoje->diff(new DateTimeImmutable(substr((string) $a->data_limite, 0, 10)))->days,
+                'account_manager' => $a->account_manager,
+                'pre_vendas' => $a->pre_vendas,
+            ])
+            ->all();
+
+        return [
+            'abertas' => (int) $indicadores->abertas,
+            'atrasadas' => (int) $indicadores->atrasadas,
+            'vencem_em_7_dias' => (int) $indicadores->vencem,
+            'concluidas_no_mes' => (int) $indicadores->concluidas_no_mes,
+            'atrasadas_por_am' => $agrupar($porAm),
+            'atrasadas_por_cliente' => $agrupar($porCliente),
+            'atrasadas_por_projeto' => $agrupar($porProjeto),
+            'proximos_vencimentos' => $proximos,
+        ];
+    }
+
+    /** Atividades de projetos não cancelados (base do painel operacional). */
+    private function atividadesOperacionais(): Builder
+    {
+        return DB::table('atividades as a')
+            ->join('projetos as p', 'p.id', '=', 'a.projeto_id')
+            ->where('p.status', '<>', StatusProjeto::CANCELADO->value);
     }
 
     public function responsaveisSugeridos(string $projetoId): array

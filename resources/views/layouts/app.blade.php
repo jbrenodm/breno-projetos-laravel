@@ -21,6 +21,8 @@
                 <div class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle @if(request()->routeIs('dashboards.*')) active @endif" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Dashboards</a>
                     <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item @if(request()->routeIs('dashboards.operacional')) active @endif" href="{{ route('dashboards.operacional') }}" wire:navigate>
+                            <i class="bi bi-speedometer2 me-2"></i>Painel operacional</a></li>
                         <li><a class="dropdown-item @if(request()->routeIs('dashboards.atividades')) active @endif" href="{{ route('dashboards.atividades') }}" wire:navigate>
                             <i class="bi bi-list-check me-2"></i>Todas as atividades</a></li>
                     </ul>

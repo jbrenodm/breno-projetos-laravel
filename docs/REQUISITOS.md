@@ -164,6 +164,7 @@ Automação (decidida na fase de desenvolvimento do backend):
 | `AlterarClienteDoProjeto` | Projetos | RN-29 |
 | `ObterResponsaveisSugeridos` (query) | Projetos | RN-14 — AM/PV da última atividade |
 
+| `PainelOperacional` (query) | Projetos | Indicadores do Dashboards › Painel operacional |
 | `ListarAtividades` (query) | Projetos | Todas as atividades de todos os projetos (tela Dashboards › Atividades) |
 
 Leituras para telas usam **Queries** (`Application/Queries`), implementadas na Infraestrutura. Escritas **sempre** passam por Casos de Uso.
@@ -203,6 +204,13 @@ app/                 Apresentação: Livewire, Controllers API, FormRequests, Pr
    - Filtros: status, cliente, tipo, AM, PV, fornecedor do projeto, somente atrasadas, período de entrada (de/até) e busca
      por cliente ou descrição.
    - Atrasada = `data_limite` anterior ao término (ou a hoje, se não concluída).
+   Tela "Painel operacional" ✅ — responde "o que precisa de atenção agora?":
+   - Considera apenas projetos **não cancelados**. "Aberta" = atividade com status diferente de `Concluída`.
+   - Indicadores: atividades abertas; **atrasadas** (abertas com `data_limite` anterior a hoje); **vencem em 7 dias**
+     (abertas com `data_limite` entre hoje e hoje + 7, inclusive); **concluídas no mês** (`data_termino` no mês corrente).
+   - Gráficos (barras, do maior para o menor): atrasadas por AM, atrasadas por Cliente e atrasadas por Projeto.
+     Projeto é identificado por "Cliente — Código de Oportunidade" ou, sem código, "Cliente — aberto em dd/mm/aaaa".
+   - Lista dos próximos vencimentos: até 10 atividades abertas que vencem em 7 dias, pela data limite.
    demais dashboards/relatórios ⏳.
 
 ## 10. Decisões em aberto
