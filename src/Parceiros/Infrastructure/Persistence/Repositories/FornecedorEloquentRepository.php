@@ -10,11 +10,16 @@ use Src\Parceiros\Domain\Repositories\FornecedorRepositoryInterface;
 use Src\Parceiros\Infrastructure\Persistence\Eloquent\Models\FornecedorModel;
 use Src\Parceiros\Infrastructure\Persistence\Eloquent\Models\SolucaoModel;
 use Src\Parceiros\Infrastructure\Persistence\Mappers\ParceirosMapper;
+use Src\Shared\Domain\Uuid;
 
 final class FornecedorEloquentRepository implements FornecedorRepositoryInterface
 {
     public function buscarPorId(string $id): ?Fornecedor
     {
+        if (! Uuid::ehValido($id)) {
+            return null;
+        }
+
         $model = FornecedorModel::query()->with('solucoes')->find($id);
 
         return $model ? ParceirosMapper::fornecedorParaDominio($model) : null;

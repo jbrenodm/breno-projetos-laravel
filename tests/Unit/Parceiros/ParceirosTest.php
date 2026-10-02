@@ -31,3 +31,37 @@ it('RN-23: soluções não se repetem no mesmo fornecedor', function () {
 
     $f->adicionarSolucao(uuid(), 'xgs firewall');
 })->throws(RegraDeParceiroException::class);
+
+it('RN-32: edita nome e descrição da solução, sanitizando', function () {
+    $f = new Fornecedor(uuid(), new DadosCadastrais('Sophos Ltda'));
+    $s = $f->adicionarSolucao($id = uuid(), 'XGS');
+
+    $f->editarSolucao($id, ' <b>XGS Firewall</b> ', '  Firewall de próxima geração ');
+
+    expect($s->getNome())->toBe('XGS Firewall')
+        ->and($s->getDescricao())->toBe('Firewall de próxima geração');
+
+    $f->editarSolucao($id, 'xgs firewall', null); // mesmo nome (outra caixa) da própria solução é permitido
+    expect($s->getNome())->toBe('xgs firewall')->and($s->getDescricao())->toBeNull();
+});
+
+it('RN-32/RN-23: renomear para o nome de outra solução é rejeitado e nada muda', function () {
+    $f = new Fornecedor(uuid(), new DadosCadastrais('Sophos Ltda'));
+    $f->adicionarSolucao(uuid(), 'Intercept X');
+    $s = $f->adicionarSolucao($id = uuid(), 'XGS', 'Original');
+
+    expect(fn () => $f->editarSolucao($id, 'INTERCEPT X', 'Nova'))->toThrow(RegraDeParceiroException::class);
+    expect($s->getNome())->toBe('XGS')->and($s->getDescricao())->toBe('Original');
+});
+
+it('RN-31: inativa e reativa solução; solução de outro fornecedor é rejeitada', function () {
+    $f = new Fornecedor(uuid(), new DadosCadastrais('Sophos Ltda'));
+    $s = $f->adicionarSolucao($id = uuid(), 'XGS');
+
+    $f->alterarSituacaoDaSolucao($id, false);
+    expect($s->isAtivo())->toBeFalse();
+    $f->alterarSituacaoDaSolucao($id, true);
+    expect($s->isAtivo())->toBeTrue();
+
+    $f->alterarSituacaoDaSolucao(uuid(), false);
+})->throws(RegraDeParceiroException::class, 'A solução informada não pertence a este fornecedor.');

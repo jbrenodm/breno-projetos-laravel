@@ -102,6 +102,12 @@ Automação (decidida na fase de desenvolvimento do backend):
 - **RN-22** CNPJ, se informado, deve ter 14 dígitos válidos e ser **único** (vários registros sem CNPJ são permitidos).
 - **RN-23** Fornecedor tem um catálogo opcional de Soluções; nome de solução não se repete dentro do mesmo fornecedor.
 - **RN-24** Cliente/Fornecedor/Solução inativos não aparecem para novos projetos, mas o histórico é preservado.
+- **RN-30 (edição de cadastro)** Todos os dados de Cliente e Fornecedor podem ser editados: `razao_social`, `nome_fantasia` e `cnpj`,
+  sempre com as validações da RN-21/RN-22 (o CNPJ alterado continua único; pode ser removido). *(Decidido em 02/10/2026.)*
+- **RN-31 (inativar/reativar)** Cliente, Fornecedor e Solução podem ser inativados e reativados a qualquer momento. A inativação
+  segue a RN-24: some das opções de novos projetos, e projetos/atividades existentes **não são alterados**. *(Decidido em 02/10/2026.)*
+- **RN-32 (edição de solução)** Nome e descrição da Solução podem ser editados; o nome continua sem repetir dentro do mesmo
+  fornecedor (RN-23). *(Decidido em 02/10/2026.)*
 
 ### 4.5 Usuários e permissões
 - **RN-25** AM e PV **não são tabelas próprias**: são usuários com papéis (`account_manager`, `pre_vendas`, `admin_geral`).
@@ -156,6 +162,9 @@ Automação (decidida na fase de desenvolvimento do backend):
 | `CadastrarCliente` | Parceiros | RN-21/22 |
 | `CadastrarFornecedor` (com soluções) | Parceiros | RN-21/22/23 |
 | `AdicionarSolucao` | Parceiros | RN-23 |
+| `EditarCliente` / `EditarFornecedor` | Parceiros | RN-30 |
+| `AlterarSituacaoCliente` / `AlterarSituacaoFornecedor` | Parceiros | RN-31 (ativar/inativar) |
+| `EditarSolucao` / `AlterarSituacaoSolucao` | Parceiros | RN-31, RN-32 |
 | `RegistrarNovoProjeto` | Projetos | RN-01..07 |
 | `RegistrarNovaAtividade` | Projetos | RN-12..20 |
 | `AlterarStatusAtividade` | Projetos | RN-16, RN-18 (inclui concluir) |
@@ -197,7 +206,7 @@ app/                 Apresentação: Livewire, Controllers API, FormRequests, Pr
 1. ✅ Domínio de Projetos/Atividades e Fornecedores (fase anterior).
 2. ✅ Realinhamento aos requisitos (este documento) + ambiente Ubuntu 26.04.
 3. ⏳ Autenticação (login) + papéis + regra de observação por autor + BOLA (carteira do AM).
-4. ⏳ Telas de cadastro de Clientes, Fornecedores/Soluções e Usuários.
+4. 🔶 Cadastro, edição e ativação/inativação de Clientes, Fornecedores e Soluções ✅ (RN-30..32); cadastro de Usuários ⏳.
 5. 🔶 Edição de atividade (RN-28) e troca de cliente do projeto (RN-29) ✅; edição de Código de Oportunidade ⏳.
 6. 🔶 Menu **Dashboards** (ao lado de Projetos, Clientes e Fornecedores), que agrupa dashboards e relatórios:
    tela "Todas as atividades" ✅ (somente leitura: cliente em destaque, depois a atividade e os demais dados).

@@ -361,3 +361,62 @@ it('Dashboards › Prazos e entrega vazio e com execução de 0 dias não quebra
 
     $this->get('/dashboards/prazos')->assertOk()->assertSee(['0 dias', '0 d']);
 });
+
+it('edita, inativa e reativa clientes pela tela (RN-30/RN-31)', function () {
+    Livewire::test(Clientes::class)
+        ->call('editar', $this->clienteId)
+        ->assertSet('razaoSocial', 'Banco Teste S.A.')
+        ->assertSet('nomeFantasia', 'Banco Teste')
+        ->assertSee('Editar cliente')
+        ->set('nomeFantasia', 'Banco Renomeado')
+        ->set('cnpj', '11.444.777/0001-61')
+        ->call('salvar')
+        ->assertHasNoErrors()
+        ->assertSet('editandoId', null)
+        ->assertSee(['Banco Renomeado', '11.444.777/0001-61', 'Cliente atualizado.'])
+        ->call('alterarSituacao', $this->clienteId, false)
+        ->assertSee(['Inativo', 'Reativar']);
+
+    $this->assertDatabaseHas('clientes', ['id' => $this->clienteId, 'nome_fantasia' => 'Banco Renomeado', 'ativo' => false]);
+
+    Livewire::test(PainelProjetos::class)->call('abrirFormulario')->assertDontSee('Banco Renomeado'); // RN-24
+
+    Livewire::test(Clientes::class)->call('alterarSituacao', $this->clienteId, true);
+    $this->assertDatabaseHas('clientes', ['id' => $this->clienteId, 'ativo' => true]);
+});
+
+it('edita fornecedor e soluções, inativa e reativa pela tela (RN-30..32)', function () {
+    $solucaoId = DB::table('solucoes')->where('fornecedor_id', $this->fornecedorId)->value('id');
+
+    Livewire::test(Fornecedores::class)
+        ->call('editar', $this->fornecedorId)
+        ->assertSet('razaoSocial', 'Alpha Ltda')
+        ->set('razaoSocial', 'Alpha Segurança Ltda')
+        ->call('salvar')
+        ->assertHasNoErrors()
+        ->assertSee(['Alpha Segurança Ltda', 'Fornecedor atualizado.'])
+        ->call('editarSolucao', $this->fornecedorId, $solucaoId)
+        ->assertSet('solucaoNome', 'EDR')
+        ->set('solucaoNome', 'EDR Avançado')
+        ->set('solucaoDescricao', 'Detecção e resposta')
+        ->call('salvarSolucao')
+        ->assertHasNoErrors()
+        ->assertSet('solucaoEditandoId', null)
+        ->assertSee(['EDR Avançado', 'Detecção e resposta'])
+        ->call('alterarSituacaoSolucao', $this->fornecedorId, $solucaoId, false)
+        ->assertSee('Inativa')
+        ->call('alterarSituacao', $this->fornecedorId, false)
+        ->assertSee('Reativar');
+
+    $this->assertDatabaseHas('fornecedores', ['id' => $this->fornecedorId, 'razao_social' => 'Alpha Segurança Ltda', 'ativo' => false]);
+    $this->assertDatabaseHas('solucoes', ['id' => $solucaoId, 'nome' => 'EDR Avançado', 'ativo' => false]);
+
+    Livewire::test(Fornecedores::class)
+        ->call('adicionarSolucao', $this->fornecedorId) // nome vazio: ignora
+        ->set("novaSolucao.{$this->fornecedorId}", 'XDR')
+        ->call('adicionarSolucao', $this->fornecedorId)
+        ->call('editarSolucao', $this->fornecedorId, DB::table('solucoes')->where('nome', 'XDR')->value('id'))
+        ->set('solucaoNome', 'edr avançado')
+        ->call('salvarSolucao')
+        ->assertSee("Este fornecedor já possui a solução 'edr avançado'.");
+});

@@ -8,11 +8,16 @@ use Src\Parceiros\Domain\Entities\Cliente;
 use Src\Parceiros\Domain\Repositories\ClienteRepositoryInterface;
 use Src\Parceiros\Infrastructure\Persistence\Eloquent\Models\ClienteModel;
 use Src\Parceiros\Infrastructure\Persistence\Mappers\ParceirosMapper;
+use Src\Shared\Domain\Uuid;
 
 final class ClienteEloquentRepository implements ClienteRepositoryInterface
 {
     public function buscarPorId(string $id): ?Cliente
     {
+        if (! Uuid::ehValido($id)) {
+            return null;
+        }
+
         $model = ClienteModel::query()->find($id);
 
         return $model ? ParceirosMapper::clienteParaDominio($model) : null;

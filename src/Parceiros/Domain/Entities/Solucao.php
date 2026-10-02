@@ -24,12 +24,21 @@ final class Solucao
             throw new RegraDeParceiroException('O identificador da solução deve ser um UUID válido.');
         }
 
+        $this->atualizar($nome, $descricao);
+    }
+
+    /** RN-32 (a unicidade do nome no fornecedor é garantida pelo agregado Fornecedor). */
+    public function atualizar(string $nome, ?string $descricao): void
+    {
         $nome = trim(strip_tags($nome));
         if ($nome === '' || mb_strlen($nome) > 255) {
             throw new RegraDeParceiroException('O nome da solução é obrigatório (máximo 255 caracteres).');
         }
 
         $descricao = $descricao === null ? null : trim(strip_tags($descricao));
+        if ($descricao !== null && mb_strlen($descricao) > 2000) {
+            throw new RegraDeParceiroException('A descrição da solução deve ter no máximo 2000 caracteres.');
+        }
 
         $this->nome = $nome;
         $this->descricao = $descricao === '' ? null : $descricao;
@@ -38,6 +47,11 @@ final class Solucao
     public function inativar(): void
     {
         $this->ativo = false;
+    }
+
+    public function ativar(): void
+    {
+        $this->ativo = true;
     }
 
     public function getId(): string

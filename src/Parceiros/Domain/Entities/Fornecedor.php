@@ -27,17 +27,53 @@ final class Fornecedor
     public function adicionarSolucao(string $solucaoId, string $nome, ?string $descricao = null): Solucao
     {
         $solucao = new Solucao($solucaoId, $nome, $descricao);
-        $chave = mb_strtolower($solucao->getNome());
-
-        foreach ($this->solucoes as $existente) {
-            if (mb_strtolower($existente->getNome()) === $chave) {
-                throw new RegraDeParceiroException("Este fornecedor já possui a solução '{$solucao->getNome()}'.");
-            }
-        }
+        $this->garantirNomeUnico($solucao->getNome(), null);
 
         $this->solucoes[] = $solucao;
 
         return $solucao;
+    }
+
+    /** RN-32 + RN-23 */
+    public function editarSolucao(string $solucaoId, string $nome, ?string $descricao): void
+    {
+        $solucao = $this->buscarSolucao($solucaoId);
+
+        // Valida e sanitiza numa cópia antes de alterar: em caso de erro, nada muda.
+        $candidata = new Solucao($solucaoId, $nome, $descricao);
+        $this->garantirNomeUnico($candidata->getNome(), $solucaoId);
+
+        $solucao->atualizar($nome, $descricao);
+    }
+
+    /** RN-31 */
+    public function alterarSituacaoDaSolucao(string $solucaoId, bool $ativa): void
+    {
+        $solucao = $this->buscarSolucao($solucaoId);
+        $ativa ? $solucao->ativar() : $solucao->inativar();
+    }
+
+    private function buscarSolucao(string $solucaoId): Solucao
+    {
+        foreach ($this->solucoes as $solucao) {
+            if ($solucao->getId() === $solucaoId) {
+                return $solucao;
+            }
+        }
+
+        throw new RegraDeParceiroException('A solução informada não pertence a este fornecedor.');
+    }
+
+    /** RN-23: nome de solução não se repete no mesmo fornecedor (sem diferenciar maiúsculas). */
+    private function garantirNomeUnico(string $nome, ?string $ignorarSolucaoId): void
+    {
+        $chave = mb_strtolower($nome);
+
+        foreach ($this->solucoes as $existente) {
+            if ($existente->getId() !== $ignorarSolucaoId && mb_strtolower($existente->getNome()) === $chave) {
+                throw new RegraDeParceiroException("Este fornecedor já possui a solução '{$nome}'.");
+            }
+        }
     }
 
     public function atualizarDados(DadosCadastrais $dados): void
