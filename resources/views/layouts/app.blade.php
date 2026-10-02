@@ -9,25 +9,31 @@
     @livewireStyles
 </head>
 <body class="bg-body-tertiary">
-    <nav class="navbar navbar-expand navbar-dark bg-dark mb-4 shadow-sm">
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4 shadow-sm">
         <div class="container">
             <a class="navbar-brand fw-semibold" href="{{ route('projetos.index') }}" wire:navigate>
                 <i class="bi bi-kanban me-2"></i>breno-projetos
             </a>
-            <div class="navbar-nav">
-                <a class="nav-link @if(request()->routeIs('projetos.*')) active @endif" href="{{ route('projetos.index') }}" wire:navigate>Projetos</a>
-                <a class="nav-link @if(request()->routeIs('clientes.*')) active @endif" href="{{ route('clientes.index') }}" wire:navigate>Clientes</a>
-                <a class="nav-link @if(request()->routeIs('fornecedores.*')) active @endif" href="{{ route('fornecedores.index') }}" wire:navigate>Fornecedores</a>
-                <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle @if(request()->routeIs('dashboards.*')) active @endif" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Dashboards</a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item @if(request()->routeIs('dashboards.operacional')) active @endif" href="{{ route('dashboards.operacional') }}" wire:navigate>
-                            <i class="bi bi-speedometer2 me-2"></i>Painel operacional</a></li>
-                        <li><a class="dropdown-item @if(request()->routeIs('dashboards.prazos')) active @endif" href="{{ route('dashboards.prazos') }}" wire:navigate>
-                            <i class="bi bi-calendar-check me-2"></i>Prazos e entrega</a></li>
-                        <li><a class="dropdown-item @if(request()->routeIs('dashboards.atividades')) active @endif" href="{{ route('dashboards.atividades') }}" wire:navigate>
-                            <i class="bi bi-list-check me-2"></i>Todas as atividades</a></li>
-                    </ul>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menuPrincipal"
+                    aria-controls="menuPrincipal" aria-expanded="false" aria-label="Abrir menu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="menuPrincipal">
+                <div class="navbar-nav">
+                    <a class="nav-link @if(request()->routeIs('projetos.*')) active @endif" href="{{ route('projetos.index') }}" wire:navigate>Projetos</a>
+                    <a class="nav-link @if(request()->routeIs('clientes.*')) active @endif" href="{{ route('clientes.index') }}" wire:navigate>Clientes</a>
+                    <a class="nav-link @if(request()->routeIs('fornecedores.*')) active @endif" href="{{ route('fornecedores.index') }}" wire:navigate>Fornecedores</a>
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle @if(request()->routeIs('dashboards.*')) active @endif" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Dashboards</a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item @if(request()->routeIs('dashboards.operacional')) active @endif" href="{{ route('dashboards.operacional') }}" wire:navigate>
+                                <i class="bi bi-speedometer2 me-2"></i>Painel operacional</a></li>
+                            <li><a class="dropdown-item @if(request()->routeIs('dashboards.prazos')) active @endif" href="{{ route('dashboards.prazos') }}" wire:navigate>
+                                <i class="bi bi-calendar-check me-2"></i>Prazos e entrega</a></li>
+                            <li><a class="dropdown-item @if(request()->routeIs('dashboards.atividades')) active @endif" href="{{ route('dashboards.atividades') }}" wire:navigate>
+                                <i class="bi bi-list-check me-2"></i>Todas as atividades</a></li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -37,7 +43,9 @@
         {{ $slot }}
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {{-- data-navigate-once: com wire:navigate o Livewire reexecutaria o script a cada troca de página, duplicando os
+         ouvintes de clique do Bootstrap (dropdown e menu do celular abriam e fechavam no mesmo clique). --}}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" data-navigate-once></script>
     @livewireScripts
 </body>
 </html>

@@ -14,12 +14,13 @@
                     @php($rotulo = $item['detalhe'] ?? "{$item['nome']}: {$item['total']} ".($item['total'] === 1 ? rtrim($unidade, 's') : $unidade))
                     <li class="gb-linha" tabindex="0" aria-label="{{ $rotulo }}">
                         @if (isset($item['url']))
-                            <a class="gb-nome text-truncate" href="{{ $item['url'] }}" title="{{ $item['nome'] }}" wire:navigate>{{ $item['nome'] }}</a>
+                            <a class="gb-nome" href="{{ $item['url'] }}" title="{{ $item['nome'] }}" wire:navigate>{{ $item['nome'] }}</a>
                         @else
-                            <span class="gb-nome text-truncate" title="{{ $item['nome'] }}">{{ $item['nome'] }}</span>
+                            <span class="gb-nome" title="{{ $item['nome'] }}">{{ $item['nome'] }}</span>
                         @endif
-                        <span class="gb-trilha">
-                            <span class="gb-barra" style="width: {{ max(2, round($item['total'] / $maximo * 100, 1)) }}%"></span>
+                        {{-- A largura é relativa à trilha inteira; o espaço do valor fica reservado no padding, então barras nunca são cortadas. --}}
+                        <span class="gb-trilha" style="--gb-largura: {{ $item['total'] > 0 ? max(2, round($item['total'] / $maximo * 100, 1)) : 0 }}%">
+                            <span class="gb-barra"></span>
                             <span class="gb-valor">{{ $item['exibir'] ?? $item['total'] }}</span>
                         </span>
                         <span class="gb-tooltip" role="tooltip">{{ $rotulo }}</span>
@@ -38,16 +39,23 @@
             gap: .75rem; padding: .3rem .25rem; border-radius: .375rem; outline: none; }
         .gb-linha:hover, .gb-linha:focus-visible { background: var(--bs-tertiary-bg); }
         .gb-linha:focus-visible { box-shadow: 0 0 0 2px var(--gb-serie); }
-        .gb-nome { font-size: .875rem; color: var(--bs-body-color); }
-        .gb-trilha { display: flex; align-items: center; gap: .5rem; min-width: 0;
+        .gb-nome { font-size: .875rem; color: var(--bs-body-color); line-height: 1.25; overflow-wrap: anywhere;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .gb-trilha { position: relative; display: block; min-width: 0; height: 16px; margin-right: 3.75rem;
             border-left: 1px solid var(--gb-trilha); }
-        .gb-barra { display: block; height: 16px; background: var(--gb-serie); border-radius: 0 4px 4px 0; flex: 0 0 auto;
-            max-width: calc(100% - 2.5rem); }
-        .gb-valor { font-size: .8125rem; font-weight: 600; color: var(--bs-secondary-color);
+        .gb-barra { display: block; height: 100%; width: var(--gb-largura); background: var(--gb-serie); border-radius: 0 4px 4px 0; }
+        .gb-valor { position: absolute; top: 50%; left: calc(var(--gb-largura) + .5rem); transform: translateY(-50%);
+            white-space: nowrap; font-size: .8125rem; font-weight: 600; color: var(--bs-secondary-color);
             font-variant-numeric: tabular-nums; }
-        .gb-tooltip { position: absolute; z-index: 5; left: 35%; bottom: calc(100% + 4px); white-space: nowrap;
+        /* O tooltip fica dentro da largura do gráfico e quebra linha se o texto for longo. */
+        .gb-tooltip { position: absolute; z-index: 5; left: .25rem; bottom: calc(100% + 4px); width: max-content;
+            max-width: calc(100% - .5rem);
             padding: .25rem .5rem; font-size: .75rem; border-radius: .375rem; pointer-events: none;
             background: var(--bs-body-color); color: var(--bs-body-bg); opacity: 0; transition: opacity .1s; }
         .gb-linha:hover .gb-tooltip, .gb-linha:focus-visible .gb-tooltip { opacity: 1; }
+        @media (max-width: 576px) {
+            .gb-linha { grid-template-columns: 1fr; gap: .25rem; }
+            .gb-nome { -webkit-line-clamp: unset; }
+        }
     </style>
 @endonce

@@ -240,7 +240,7 @@ final class EloquentProjetoQuery implements ProjetoQuery
             'concluidas_no_mes' => (int) $indicadores->concluidas_no_mes,
             'atrasadas_por_am' => $agrupar($porAm),
             'atrasadas_por_cliente' => $agrupar($porCliente),
-            'atrasadas_por_projeto' => $agrupar($porProjeto),
+            'atrasadas_por_projeto' => self::desambiguarNomes($agrupar($porProjeto)),
             'proximos_vencimentos' => $proximos,
         ];
     }
@@ -324,6 +324,27 @@ final class EloquentProjetoQuery implements ProjetoQuery
                 'a.data_termino - a.data_limite',
             ),
         ];
+    }
+
+    /**
+     * Projetos sem código abertos no mesmo dia para o mesmo cliente teriam o mesmo rótulo: numera-os (1), (2)... na ordem recebida.
+     *
+     * @param  list<array{id: string, nome: string, total: int}>  $itens
+     * @return list<array{id: string, nome: string, total: int}>
+     */
+    private static function desambiguarNomes(array $itens): array
+    {
+        $repetidos = array_filter(array_count_values(array_column($itens, 'nome')), fn (int $n) => $n > 1);
+        $vistos = [];
+
+        foreach ($itens as &$item) {
+            if (isset($repetidos[$item['nome']])) {
+                $vistos[$item['nome']] = ($vistos[$item['nome']] ?? 0) + 1;
+                $item['nome'] .= ' ('.$vistos[$item['nome']].')';
+            }
+        }
+
+        return $itens;
     }
 
     /** Atividades de projetos não cancelados (base dos dashboards). */
