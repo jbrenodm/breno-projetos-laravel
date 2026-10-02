@@ -7,11 +7,15 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Src\Identidade\Application\Ports\AcessosDoUsuario;
 use Src\Identidade\Application\Ports\HashDeSenha;
+use Src\Identidade\Application\Queries\PapeisQuery;
 use Src\Identidade\Application\Queries\UsuariosQuery;
+use Src\Identidade\Domain\Repositories\DefinicaoDePapelRepositoryInterface;
 use Src\Identidade\Domain\Repositories\UsuarioRepositoryInterface;
 use Src\Identidade\Infrastructure\Adapters\AcessosDoUsuarioSanctum;
 use Src\Identidade\Infrastructure\Adapters\HashDeSenhaLaravel;
+use Src\Identidade\Infrastructure\Persistence\DefinicaoDePapelEloquentRepository;
 use Src\Identidade\Infrastructure\Persistence\UsuarioEloquentRepository;
+use Src\Identidade\Infrastructure\Queries\EloquentPapeisQuery;
 use Src\Identidade\Infrastructure\Queries\EloquentUsuariosQuery;
 use Src\Parceiros\Application\Queries\ParceirosQuery;
 use Src\Parceiros\Domain\Repositories\ClienteRepositoryInterface;
@@ -19,10 +23,12 @@ use Src\Parceiros\Domain\Repositories\FornecedorRepositoryInterface;
 use Src\Parceiros\Infrastructure\Persistence\Repositories\ClienteEloquentRepository;
 use Src\Parceiros\Infrastructure\Persistence\Repositories\FornecedorEloquentRepository;
 use Src\Parceiros\Infrastructure\Queries\EloquentParceirosQuery;
+use Src\Projetos\Application\Ports\NomesDosResponsaveis;
 use Src\Projetos\Application\Ports\VerificadorDeParceiros;
 use Src\Projetos\Application\Ports\VerificadorDeUsuarios;
 use Src\Projetos\Application\Queries\ProjetoQuery;
 use Src\Projetos\Domain\Repositories\ProjetoRepositoryInterface;
+use Src\Projetos\Infrastructure\Adapters\NomesDosResponsaveisViaIdentidade;
 use Src\Projetos\Infrastructure\Adapters\VerificadorDeParceirosEloquent;
 use Src\Projetos\Infrastructure\Adapters\VerificadorDeUsuariosViaIdentidade;
 use Src\Projetos\Infrastructure\Persistence\Repositories\ProjetoEloquentRepository;
@@ -45,6 +51,8 @@ final class ContextosServiceProvider extends ServiceProvider
         // Identidade
         UsuariosQuery::class => EloquentUsuariosQuery::class,
         UsuarioRepositoryInterface::class => UsuarioEloquentRepository::class,
+        DefinicaoDePapelRepositoryInterface::class => DefinicaoDePapelEloquentRepository::class,
+        PapeisQuery::class => EloquentPapeisQuery::class,
         HashDeSenha::class => HashDeSenhaLaravel::class,
         AcessosDoUsuario::class => AcessosDoUsuarioSanctum::class,
 
@@ -58,5 +66,6 @@ final class ContextosServiceProvider extends ServiceProvider
         ProjetoQuery::class => EloquentProjetoQuery::class,
         VerificadorDeParceiros::class => VerificadorDeParceirosEloquent::class,
         VerificadorDeUsuarios::class => VerificadorDeUsuariosViaIdentidade::class,
+        NomesDosResponsaveis::class => NomesDosResponsaveisViaIdentidade::class,
     ];
 }

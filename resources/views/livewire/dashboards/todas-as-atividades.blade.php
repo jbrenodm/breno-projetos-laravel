@@ -1,3 +1,8 @@
+@inject('papeis', \App\Support\NomesDePapeis::class)
+@php
+    $AM = \Src\Identidade\Domain\Papel::ACCOUNT_MANAGER;
+    $PV = \Src\Identidade\Domain\Papel::PRE_VENDAS;
+@endphp
 @php
     $fmt = fn (?string $d) => $d ? \Illuminate\Support\Carbon::parse($d)->format('d/m/Y') : '—';
 @endphp
@@ -60,14 +65,14 @@
                     </select>
                 </div>
                 <div class="col-6 col-lg-3">
-                    <select class="form-select" wire:model.live="accountManagerId" aria-label="Account Manager">
-                        <option value="">Todos os AMs</option>
+                    <select class="form-select" wire:model.live="accountManagerId" aria-label="{{ $papeis->nome($AM) }}">
+                        <option value="">{{ $papeis->todos($AM) }}</option>
                         @foreach ($accountManagers as $u) <option value="{{ $u['id'] }}">{{ $u['nome'] }}</option> @endforeach
                     </select>
                 </div>
                 <div class="col-6 col-lg-3">
-                    <select class="form-select" wire:model.live="preVendasId" aria-label="Pré-vendas">
-                        <option value="">Todos os PVs</option>
+                    <select class="form-select" wire:model.live="preVendasId" aria-label="{{ $papeis->nome($PV) }}">
+                        <option value="">{{ $papeis->todos($PV) }}</option>
                         @foreach ($preVendas as $u) <option value="{{ $u['id'] }}">{{ $u['nome'] }}</option> @endforeach
                     </select>
                 </div>
@@ -102,7 +107,7 @@
                             <div class="fw-semibold mt-1">{{ $a['descricao'] }}</div>
                             <div class="small text-muted mt-1">
                                 <span class="badge text-bg-light border">{{ $a['tipo'] }}</span>
-                                <i class="bi bi-person ms-2"></i> AM: {{ $a['account_manager'] }} · PV: {{ $a['pre_vendas'] }}
+                                <i class="bi bi-person ms-2"></i> {{ $papeis->sigla($AM) }}: {{ $a['account_manager'] }} · {{ $papeis->sigla($PV) }}: {{ $a['pre_vendas'] }}
                                 @if ($a['fornecedores']) · <i class="bi bi-building"></i> {{ implode(', ', $a['fornecedores']) }} @endif
                                 @if ($a['codigo_oportunidade']) · {{ $a['codigo_oportunidade'] }} @endif
                             </div>

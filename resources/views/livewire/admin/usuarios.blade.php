@@ -1,3 +1,4 @@
+@inject('papeis', \App\Support\NomesDePapeis::class)
 @php
     use Src\Identidade\Domain\Papel;
     $editando = $editandoId !== null;
@@ -28,7 +29,7 @@
                         @foreach ($todosPapeis as $p)
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" value="{{ $p->value }}" id="papel-{{ $p->value }}" wire:model="papeis">
-                                <label class="form-check-label" for="papel-{{ $p->value }}">{{ $p->rotulo() }}</label>
+                                <label class="form-check-label" for="papel-{{ $p->value }}">{{ $papeis->nome($p) }}</label>
                             </div>
                         @endforeach
                         @error('papeis') <div class="small text-danger">{{ $message }}</div> @enderror
@@ -66,7 +67,7 @@
                                     <div class="small text-muted">{{ $u['email'] }}</div>
                                     <div class="mt-1">
                                         @foreach ($u['papeis'] as $papel)
-                                            <span class="badge rounded-pill text-bg-light border">{{ Papel::from($papel)->rotulo() }}</span>
+                                            <span class="badge rounded-pill text-bg-light border">{{ $papeis->nome(Papel::from($papel)) }}</span>
                                         @endforeach
                                     </div>
                                 </div>

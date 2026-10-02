@@ -43,10 +43,7 @@ class UserFactory extends Factory
     public function comPapel(Papel $papel): static
     {
         return $this->afterCreating(function (User $user) use ($papel) {
-            $role = RoleModel::query()->firstOrCreate(
-                ['nome' => $papel->value],
-                ['descricao' => $papel->rotulo()],
-            );
+            $role = RoleModel::garantir($papel);
             $user->roles()->syncWithoutDetaching([$role->id]);
         });
     }

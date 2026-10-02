@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Src\Projetos\Application\UseCases;
 
 use Src\Projetos\Application\DTOs\RegistrarAtividadeInput;
+use Src\Projetos\Application\Ports\NomesDosResponsaveis;
 use Src\Projetos\Application\Ports\VerificadorDeUsuarios;
 use Src\Projetos\Domain\Exceptions\RegraDeProjetoException;
 use Src\Projetos\Domain\Exceptions\ResponsavelObrigatorioException;
@@ -23,6 +24,7 @@ final readonly class RegistrarNovaAtividade
     public function __construct(
         private ProjetoRepositoryInterface $projetos,
         private VerificadorDeUsuarios $usuarios,
+        private NomesDosResponsaveis $nomes,
         private GeradorDeId $geradorDeId,
         private Relogio $relogio,
     ) {}
@@ -32,12 +34,20 @@ final readonly class RegistrarNovaAtividade
         $projeto = $this->projetos->buscarPorId($input->projetoId)
             ?? throw RecursoNaoEncontradoException::para('Projeto', $input->projetoId);
 
+        // RN-14: sem AM/PV e sem atividade anterior para herdar (o domínio também protege; aqui a mensagem usa os nomes atuais — RN-41).
+        $sugeridos = $projeto->responsaveisSugeridos();
+        if (($input->accountManagerId ?? $sugeridos['account_manager_id']) === null || ($input->preVendasId ?? $sugeridos['pre_vendas_id']) === null) {
+            throw new ResponsavelObrigatorioException(
+                "Para registrar a primeira atividade do projeto é obrigatório informar {$this->nomes->accountManager()} e {$this->nomes->preVendas()}."
+            );
+        }
+
         if ($input->accountManagerId !== null && ! $this->usuarios->ehAccountManagerAtivo($input->accountManagerId)) {
-            throw new ResponsavelObrigatorioException('O Account Manager informado não existe, está inativo ou não possui esse papel.');
+            throw new ResponsavelObrigatorioException("O {$this->nomes->accountManager()} informado não existe, está inativo ou não possui esse papel.");
         }
 
         if ($input->preVendasId !== null && ! $this->usuarios->ehPreVendasAtivo($input->preVendasId)) {
-            throw new ResponsavelObrigatorioException('O Pré-vendas informado não existe, está inativo ou não possui esse papel.');
+            throw new ResponsavelObrigatorioException("O {$this->nomes->preVendas()} informado não existe, está inativo ou não possui esse papel.");
         }
 
         $atividade = $projeto->adicionarAtividade(

@@ -1,3 +1,8 @@
+@inject('papeis', \App\Support\NomesDePapeis::class)
+@php
+    $AM = \Src\Identidade\Domain\Papel::ACCOUNT_MANAGER;
+    $PV = \Src\Identidade\Domain\Papel::PRE_VENDAS;
+@endphp
 @php
     $fmt = fn (string $d) => \Illuminate\Support\Carbon::parse($d)->format('d/m/Y');
     $prazo = fn (int $dias) => match ($dias) { 0 => 'vence hoje', 1 => 'vence amanhã', default => "em {$dias} dias" };
@@ -42,7 +47,7 @@
 
     <div class="row g-3 mb-3">
         <div class="col-lg-6">
-            <x-grafico-barras titulo="Atividades atrasadas por Account Manager" subtitulo="Abertas com data limite vencida"
+            <x-grafico-barras :titulo="'Atividades atrasadas por '.$papeis->nome($AM)" subtitulo="Abertas com data limite vencida"
                               :itens="$painel['atrasadas_por_am']" vazio="Nenhuma atividade atrasada." />
         </div>
         <div class="col-lg-6">
@@ -68,7 +73,7 @@
                             <div>{{ $a['descricao'] }}</div>
                             <div class="small text-muted">
                                 <span class="badge text-bg-light border">{{ $a['tipo'] }}</span>
-                                AM: {{ $a['account_manager'] }} · PV: {{ $a['pre_vendas'] }}
+                                {{ $papeis->sigla($AM) }}: {{ $a['account_manager'] }} · {{ $papeis->sigla($PV) }}: {{ $a['pre_vendas'] }}
                             </div>
                         </div>
                         <div class="text-end">

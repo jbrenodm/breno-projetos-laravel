@@ -12,7 +12,7 @@ class PapeisSeeder extends Seeder
     public function run(): void
     {
         foreach (Papel::cases() as $papel) {
-            RoleModel::query()->updateOrCreate(['nome' => $papel->value], ['descricao' => $papel->rotulo()]);
+            RoleModel::garantir($papel); // só cria o que falta: não desfaz nomes editados na tela (RN-41)
         }
     }
 }

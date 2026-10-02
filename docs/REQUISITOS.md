@@ -132,6 +132,12 @@ Automação (decidida na fase de desenvolvimento do backend):
 - **RN-39 (sempre há um Admin)** Nenhuma operação pode deixar o sistema sem **Admin Geral do Sistema ativo** (inativar o último Admin ou
   remover o papel dele é rejeitado).
 - **RN-40 (minha conta)** Todo usuário pode trocar a própria senha (informando a atual) e gerenciar seus tokens de API.
+- **RN-41 (renomear papéis)** O Admin Geral do Sistema pode alterar o **nome exibido** e a **sigla** de cada papel
+  (ex.: `account_manager` → "Gerente de Contas" / "GC"). O novo nome vale em todo o sistema: telas, filtros, gráficos e mensagens.
+  Nome obrigatório (até 60 caracteres) e sigla opcional (até 10); nenhum dos dois se repete entre papéis (sem diferenciar maiúsculas).
+  O identificador interno (`account_manager`, `pre_vendas`, `admin_geral`) **nunca muda** e os papéis não podem ser criados nem
+  excluídos — papéis novos dependem do controle de permissões (RBAC, RN-26), ainda não definido. *(Decidido em 02/10/2026.)*
+  Neste documento continuam valendo os termos AM, PV e Admin Geral do Sistema (linguagem ubíqua).
 - **Instalação:** num banco sem Admin Geral do Sistema ativo, o primeiro Admin é criado pelo terminal com
   `php artisan usuarios:criar-admin {email} {nome}` (pede a senha). Havendo um Admin ativo, o comando é recusado (RN-35/RN-39).
 - Com o login, a **RN-20** (só o autor edita a observação) passa a valer. A carteira do AM (D-04) continua em aberto:
@@ -165,7 +171,8 @@ Automação (decidida na fase de desenvolvimento do backend):
 
 **personal_access_tokens**: tabela padrão do Laravel Sanctum (tokens de API, RN-34).
 
-**roles**: `id uuid pk`, `nome unique` (`account_manager`, `pre_vendas`, `admin_geral`), `descricao`.
+**roles**: `id uuid pk`, `nome unique` (identificador interno: `account_manager`, `pre_vendas`, `admin_geral`),
+`descricao` (nome exibido, editável — RN-41), `sigla varchar(10) null` (padrão: AM, PV e vazio para o Admin).
 
 **role_user**: `user_id uuid fk`, `role_id uuid fk`, pk composta.
 
@@ -195,6 +202,7 @@ Automação (decidida na fase de desenvolvimento do backend):
 | `TrocarSenha` / `RedefinirSenhaPorLink` | Identidade | RN-36..38, RN-40 |
 | `GerarTokenDeApi` / `RevogarTokenDeApi` | Identidade | RN-34, RN-40 |
 | `CriarPrimeiroAdmin` | Identidade | Instalação (comando `usuarios:criar-admin`) |
+| `RenomearPapel` | Identidade | RN-41 (só Admin Geral do Sistema) |
 | `RegistrarNovoProjeto` | Projetos | RN-01..07 |
 | `RegistrarNovaAtividade` | Projetos | RN-12..20 |
 | `AlterarStatusAtividade` | Projetos | RN-16, RN-18 (inclui concluir) |
@@ -237,7 +245,8 @@ app/                 Apresentação: Livewire, Controllers API, FormRequests, Pr
 2. ✅ Realinhamento aos requisitos (este documento) + ambiente Ubuntu 26.04.
 3. 🔶 Login/logout, esqueci minha senha, tokens de API e cadastro de usuários ✅ (RN-33..40); observação por autor ✅ (RN-20);
    BOLA da carteira do AM ⏳ (D-04).
-4. ✅ Cadastro, edição e ativação/inativação de Clientes, Fornecedores e Soluções (RN-30..32) e de Usuários (RN-35).
+4. ✅ Cadastro, edição e ativação/inativação de Clientes, Fornecedores e Soluções (RN-30..32) e de Usuários (RN-35);
+   renomear papéis (RN-41). Papéis novos com permissões (RBAC) ⏳ — depende da lista de permissões e de D-03/D-04.
 5. 🔶 Edição de atividade (RN-28) e troca de cliente do projeto (RN-29) ✅; edição de Código de Oportunidade ⏳.
 6. 🔶 Menu **Dashboards** (ao lado de Projetos, Clientes e Fornecedores), que agrupa dashboards e relatórios:
    tela "Todas as atividades" ✅ (somente leitura: cliente em destaque, depois a atividade e os demais dados).

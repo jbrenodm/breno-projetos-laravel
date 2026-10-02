@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Projetos;
 
 use App\Livewire\Concerns\ExecutaCasosDeUso;
+use App\Support\NomesDePapeis;
 use DateTimeImmutable;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -287,6 +288,8 @@ final class DetalheProjeto extends Component
 
     private function validarFormularioDeAtividade(): void
     {
+        $papeis = app(NomesDePapeis::class); // RN-41: mensagens com os nomes atuais dos papéis
+
         $this->validate([
             'descricao' => ['required', 'string', 'max:2000'],
             'tipo' => ['required', Rule::enum(TipoAtividade::class)],
@@ -301,7 +304,8 @@ final class DetalheProjeto extends Component
         ], attributes: [
             'descricao' => 'descrição', 'dataEntrada' => 'data de entrada', 'dataLimite' => 'data limite',
             'dataInicio' => 'data de início', 'dataTermino' => 'data de término',
-            'accountManagerId' => 'Account Manager', 'preVendasId' => 'Pré-vendas', 'observacao' => 'observação',
+            'accountManagerId' => $papeis->nome(Papel::ACCOUNT_MANAGER), 'preVendasId' => $papeis->nome(Papel::PRE_VENDAS),
+            'observacao' => 'observação',
         ]);
     }
 

@@ -36,7 +36,7 @@
                     </div>
                     @auth
                         <div class="nav-item dropdown ms-md-3">
-                            <a class="nav-link dropdown-toggle @if(request()->routeIs('conta', 'usuarios.*')) active @endif" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle @if(request()->routeIs('conta', 'usuarios.*', 'papeis.*')) active @endif" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-person-circle me-1"></i>{{ auth()->user()->name }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
@@ -45,6 +45,8 @@
                                 @can('admin-geral')
                                     <li><a class="dropdown-item @if(request()->routeIs('usuarios.*')) active @endif" href="{{ route('usuarios.index') }}" wire:navigate>
                                         <i class="bi bi-people me-2"></i>Usuários</a></li>
+                                    <li><a class="dropdown-item @if(request()->routeIs('papeis.*')) active @endif" href="{{ route('papeis.index') }}" wire:navigate>
+                                        <i class="bi bi-person-badge me-2"></i>Papéis</a></li>
                                 @endcan
                                 <li><hr class="dropdown-divider"></li>
                                 <li>

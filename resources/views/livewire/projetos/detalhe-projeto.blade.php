@@ -1,3 +1,8 @@
+@inject('papeis', \App\Support\NomesDePapeis::class)
+@php
+    $AM = \Src\Identidade\Domain\Papel::ACCOUNT_MANAGER;
+    $PV = \Src\Identidade\Domain\Papel::PRE_VENDAS;
+@endphp
 @php
     $cancelado = $projeto['status'] === 'Cancelado';
     $editando = $atividadeEditandoId !== null;
@@ -80,7 +85,7 @@
                         @if ($editando) <div class="form-text">Use os botões de status da atividade.</div> @endif
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Account Manager <span class="text-danger">*</span></label>
+                        <label class="form-label">{{ $papeis->nome($AM) }} <span class="text-danger">*</span></label>
                         <select class="form-select @error('accountManagerId') is-invalid @enderror" wire:model="accountManagerId">
                             <option value="">Selecione…</option>
                             @foreach ($accountManagers as $u) <option value="{{ $u['id'] }}">{{ $u['nome'] }}</option> @endforeach
@@ -88,7 +93,7 @@
                         @error('accountManagerId') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Pré-vendas <span class="text-danger">*</span></label>
+                        <label class="form-label">{{ $papeis->nome($PV) }} <span class="text-danger">*</span></label>
                         <select class="form-select @error('preVendasId') is-invalid @enderror" wire:model="preVendasId">
                             <option value="">Selecione…</option>
                             @foreach ($preVendas as $u) <option value="{{ $u['id'] }}">{{ $u['nome'] }}</option> @endforeach
@@ -99,9 +104,9 @@
                         @if ($editando)
                             <i class="bi bi-info-circle"></i> Alterações em atividades concluídas corrigem o histórico.
                         @elseif ($primeiraAtividade)
-                            <i class="bi bi-info-circle"></i> Primeira atividade do projeto: informe o Account Manager e o Pré-vendas.
+                            <i class="bi bi-info-circle"></i> Primeira atividade do projeto: informe {{ $papeis->nome($AM) }} e {{ $papeis->nome($PV) }}.
                         @else
-                            <i class="bi bi-info-circle"></i> AM e PV pré-preenchidos com os da última atividade — altere se necessário.
+                            <i class="bi bi-info-circle"></i> {{ $papeis->sigla($AM) }} e {{ $papeis->sigla($PV) }} pré-preenchidos com os da última atividade — altere se necessário.
                         @endif
                     </div>
 
@@ -160,8 +165,8 @@
                             </div>
                             <div class="small text-muted mt-1">
                                 <span class="badge text-bg-light border">{{ $a['tipo'] }}</span>
-                                <i class="bi bi-person ms-2"></i> AM: {{ $a['account_manager'] }}
-                                · PV: {{ $a['pre_vendas'] }}
+                                <i class="bi bi-person ms-2"></i> {{ $papeis->sigla($AM) }}: {{ $a['account_manager'] }}
+                                · {{ $papeis->sigla($PV) }}: {{ $a['pre_vendas'] }}
                             </div>
                             <div class="small mt-1">
                                 Entrada {{ $fmt($a['data_entrada']) }}

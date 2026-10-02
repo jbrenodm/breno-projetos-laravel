@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Src\Projetos\Application\UseCases;
 
 use Src\Projetos\Application\DTOs\EditarAtividadeInput;
+use Src\Projetos\Application\Ports\NomesDosResponsaveis;
 use Src\Projetos\Application\Ports\VerificadorDeUsuarios;
 use Src\Projetos\Domain\Exceptions\RegraDeProjetoException;
 use Src\Projetos\Domain\Exceptions\ResponsavelObrigatorioException;
@@ -20,6 +21,7 @@ final readonly class EditarAtividade
     public function __construct(
         private ProjetoRepositoryInterface $projetos,
         private VerificadorDeUsuarios $usuarios,
+        private NomesDosResponsaveis $nomes,
         private Relogio $relogio,
     ) {}
 
@@ -33,12 +35,12 @@ final readonly class EditarAtividade
         // Só valida o papel quando o responsável muda: um AM/PV já inativo não impede corrigir outros campos.
         if ($input->accountManagerId !== $atividade->getAccountManagerId()
             && ! $this->usuarios->ehAccountManagerAtivo($input->accountManagerId)) {
-            throw new ResponsavelObrigatorioException('O Account Manager informado não existe, está inativo ou não possui esse papel.');
+            throw new ResponsavelObrigatorioException("O {$this->nomes->accountManager()} informado não existe, está inativo ou não possui esse papel.");
         }
 
         if ($input->preVendasId !== $atividade->getPreVendasId()
             && ! $this->usuarios->ehPreVendasAtivo($input->preVendasId)) {
-            throw new ResponsavelObrigatorioException('O Pré-vendas informado não existe, está inativo ou não possui esse papel.');
+            throw new ResponsavelObrigatorioException("O {$this->nomes->preVendas()} informado não existe, está inativo ou não possui esse papel.");
         }
 
         $projeto->editarAtividade(

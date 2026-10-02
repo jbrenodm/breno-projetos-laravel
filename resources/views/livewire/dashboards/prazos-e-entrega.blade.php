@@ -1,3 +1,8 @@
+@inject('papeis', \App\Support\NomesDePapeis::class)
+@php
+    $AM = \Src\Identidade\Domain\Papel::ACCOUNT_MANAGER;
+    $PV = \Src\Identidade\Domain\Papel::PRE_VENDAS;
+@endphp
 @php
     use App\Livewire\Dashboards\PrazosEEntrega;
     $fmt = fn (string $d) => \Illuminate\Support\Carbon::parse($d)->format('d/m/Y');
@@ -60,7 +65,7 @@
                               :itens="PrazosEEntrega::barrasDeDias($dados['atraso_por_tipo'])" vazio="Nenhuma entrega com atraso no período." />
         </div>
         <div class="col-lg-4">
-            <x-grafico-barras titulo="Atraso médio por Account Manager" subtitulo="Dias além da data limite"
+            <x-grafico-barras :titulo="'Atraso médio por '.$papeis->nome($AM)" subtitulo="Dias além da data limite"
                               :itens="PrazosEEntrega::barrasDeDias($dados['atraso_por_am'])" vazio="Nenhuma entrega com atraso no período." />
         </div>
     </div>

@@ -66,7 +66,7 @@ final class UsuarioEloquentRepository implements UsuarioRepositoryInterface
 
             // Os papéis são definidos pelo enum Papel (RN-25): garante a linha em "roles" em vez de descartar em silêncio.
             $user->roles()->sync(array_map(
-                fn (Papel $p) => RoleModel::query()->firstOrCreate(['nome' => $p->value], ['descricao' => $p->rotulo()])->id,
+                fn (Papel $p) => RoleModel::garantir($p)->id,
                 $usuario->getPapeis(),
             ));
         });
