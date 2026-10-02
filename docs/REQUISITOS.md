@@ -140,6 +140,7 @@ Automação (decidida na fase de desenvolvimento do backend):
   Neste documento continuam valendo os termos AM, PV e Admin Geral do Sistema (linguagem ubíqua).
 - **Instalação:** num banco sem Admin Geral do Sistema ativo, o primeiro Admin é criado pelo terminal com
   `php artisan usuarios:criar-admin {email} {nome}` (pede a senha). Havendo um Admin ativo, o comando é recusado (RN-35/RN-39).
+  Para recomeçar do zero (apaga **todos** os dados, recria os papéis e o primeiro Admin): `scripts/iniciar-do-zero.sh`.
 - Com o login, a **RN-20** (só o autor edita a observação) passa a valer. A carteira do AM (D-04) continua em aberto:
   por enquanto todo usuário logado vê todos os projetos.
 
