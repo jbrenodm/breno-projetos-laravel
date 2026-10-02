@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Dashboards\TodasAsAtividades;
 use App\Livewire\Parceiros\Clientes;
 use App\Livewire\Parceiros\Fornecedores;
 use App\Livewire\Projetos\DetalheProjeto;
@@ -11,3 +12,4 @@ Route::livewire('/', PainelProjetos::class)->name('projetos.index');
 Route::livewire('/projetos/{projetoId}', DetalheProjeto::class)->name('projetos.show');
 Route::livewire('/clientes', Clientes::class)->name('clientes.index');
 Route::livewire('/fornecedores', Fornecedores::class)->name('fornecedores.index');
+Route::livewire('/dashboards/atividades', TodasAsAtividades::class)->name('dashboards.atividades');

@@ -164,6 +164,8 @@ Automação (decidida na fase de desenvolvimento do backend):
 | `AlterarClienteDoProjeto` | Projetos | RN-29 |
 | `ObterResponsaveisSugeridos` (query) | Projetos | RN-14 — AM/PV da última atividade |
 
+| `ListarAtividades` (query) | Projetos | Todas as atividades de todos os projetos (tela Dashboards › Atividades) |
+
 Leituras para telas usam **Queries** (`Application/Queries`), implementadas na Infraestrutura. Escritas **sempre** passam por Casos de Uso.
 
 ## 8. Arquitetura
@@ -195,6 +197,13 @@ app/                 Apresentação: Livewire, Controllers API, FormRequests, Pr
 3. ⏳ Autenticação (login) + papéis + regra de observação por autor + BOLA (carteira do AM).
 4. ⏳ Telas de cadastro de Clientes, Fornecedores/Soluções e Usuários.
 5. 🔶 Edição de atividade (RN-28) e troca de cliente do projeto (RN-29) ✅; edição de Código de Oportunidade ⏳.
+6. 🔶 Menu **Dashboards** (ao lado de Projetos, Clientes e Fornecedores), que agrupa dashboards e relatórios:
+   tela "Todas as atividades" ✅ (somente leitura: cliente em destaque, depois a atividade e os demais dados).
+   - Ordenação por data de entrada (**padrão, mais recentes primeiro**), data limite, cliente, status ou tipo, em ambos os sentidos.
+   - Filtros: status, cliente, tipo, AM, PV, fornecedor do projeto, somente atrasadas, período de entrada (de/até) e busca
+     por cliente ou descrição.
+   - Atrasada = `data_limite` anterior ao término (ou a hoje, se não concluída).
+   demais dashboards/relatórios ⏳.
 
 ## 10. Decisões em aberto
 

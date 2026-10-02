@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Src\Projetos\Infrastructure\Queries;
 
 use Illuminate\Support\Facades\DB;
+use Src\Projetos\Application\Queries\FiltroAtividades;
+use Src\Projetos\Application\Queries\OrdenacaoAtividades;
 use Src\Projetos\Application\Queries\ProjetoQuery;
 use Src\Projetos\Domain\ValueObjects\StatusAtividade;
 use Src\Shared\Domain\Uuid;
@@ -97,6 +99,68 @@ final class EloquentProjetoQuery implements ProjetoQuery
             'fornecedores' => $this->fornecedoresPorProjeto([$p->id])[$p->id] ?? [],
             'atividades' => $atividades,
         ];
+    }
+
+    public function listarAtividades(FiltroAtividades $filtro = new FiltroAtividades): array
+    {
+        $busca = trim((string) $filtro->busca);
+        $sentido = $filtro->decrescente ? 'desc' : 'asc';
+        $hoje = now()->toDateString();
+
+        $atividades = DB::table('atividades as a')
+            ->join('projetos as p', 'p.id', '=', 'a.projeto_id')
+            ->join('clientes as c', 'c.id', '=', 'p.cliente_id')
+            ->join('users as am', 'am.id', '=', 'a.account_manager_id')
+            ->join('users as pv', 'pv.id', '=', 'a.pre_vendas_id')
+            ->when($filtro->status, fn ($q, $v) => $q->where('a.status', $v))
+            ->when($filtro->tipo, fn ($q, $v) => $q->where('a.tipo', $v))
+            ->when($filtro->clienteId, fn ($q, $v) => $q->where('p.cliente_id', $v))
+            ->when($filtro->accountManagerId, fn ($q, $v) => $q->where('a.account_manager_id', $v))
+            ->when($filtro->preVendasId, fn ($q, $v) => $q->where('a.pre_vendas_id', $v))
+            ->when($filtro->fornecedorId, fn ($q, $v) => $q->whereExists(fn ($sub) => $sub->from('projeto_fornecedores as pf')
+                ->whereColumn('pf.projeto_id', 'p.id')->where('pf.fornecedor_id', $v)))
+            ->when($filtro->somenteAtrasadas, fn ($q) => $q->whereRaw('COALESCE(a.data_termino, ?) > a.data_limite', [$hoje]))
+            ->when($filtro->entradaDe, fn ($q, $v) => $q->where('a.data_entrada', '>=', $v->format('Y-m-d')))
+            ->when($filtro->entradaAte, fn ($q, $v) => $q->where('a.data_entrada', '<=', $v->format('Y-m-d')))
+            ->when($busca !== '', fn ($q) => $q->where(function ($q) use ($busca): void {
+                $termo = '%'.addcslashes($busca, '%_\\').'%';
+                $q->whereRaw(self::NOME_CLIENTE.' ILIKE ?', [$termo])
+                    ->orWhere('c.razao_social', 'ILIKE', $termo)
+                    ->orWhere('a.descricao', 'ILIKE', $termo);
+            }))
+            ->orderByRaw(match ($filtro->ordenarPor) {
+                OrdenacaoAtividades::DATA_ENTRADA => 'a.data_entrada',
+                OrdenacaoAtividades::DATA_LIMITE => 'a.data_limite',
+                OrdenacaoAtividades::CLIENTE => self::NOME_CLIENTE,
+                OrdenacaoAtividades::STATUS => 'a.status',
+                OrdenacaoAtividades::TIPO => 'a.tipo',
+            }.' '.$sentido)
+            ->orderByRaw(self::NOME_CLIENTE)
+            ->orderBy('a.sequencia')
+            ->selectRaw('a.*, p.status as projeto_status, p.codigo_oportunidade, '.self::NOME_CLIENTE.' as cliente')
+            ->addSelect('am.name as account_manager', 'pv.name as pre_vendas')
+            ->get();
+
+        $fornecedores = $this->fornecedoresPorProjeto($atividades->pluck('projeto_id')->unique()->values()->all());
+
+        return $atividades->map(fn ($a) => [
+            'id' => $a->id,
+            'projeto_id' => $a->projeto_id,
+            'projeto_status' => $a->projeto_status,
+            'cliente' => $a->cliente,
+            'codigo_oportunidade' => $a->codigo_oportunidade,
+            'fornecedores' => array_values(array_unique(array_column($fornecedores[$a->projeto_id] ?? [], 'fornecedor'))),
+            'descricao' => $a->descricao,
+            'tipo' => $a->tipo,
+            'status' => $a->status,
+            'data_entrada' => $a->data_entrada,
+            'data_limite' => $a->data_limite,
+            'data_inicio' => $a->data_inicio,
+            'data_termino' => $a->data_termino,
+            'atrasada' => $this->estaAtrasada($a->data_limite, $a->data_termino),
+            'account_manager' => $a->account_manager,
+            'pre_vendas' => $a->pre_vendas,
+        ])->all();
     }
 
     public function responsaveisSugeridos(string $projetoId): array

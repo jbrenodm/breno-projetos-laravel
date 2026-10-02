@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Livewire\Dashboards\TodasAsAtividades;
 use App\Livewire\Parceiros\Clientes;
 use App\Livewire\Parceiros\Fornecedores;
 use App\Livewire\Projetos\DetalheProjeto;
@@ -152,4 +153,64 @@ it('edita atividade e troca o cliente pela tela de detalhe (RN-28/RN-29)', funct
 
     $this->assertDatabaseHas('atividades', ['id' => $atividadeId, 'descricao' => 'Levantamento revisado', 'account_manager_id' => $outroAm->id]);
     $this->assertDatabaseHas('projetos', ['id' => $projetoId, 'cliente_id' => $novoCliente]);
+});
+
+it('Dashboards › Todas as atividades: ordena por data de entrada (mais recentes primeiro) e filtra', function () {
+    $outroCliente = app(CadastrarCliente::class)->execute(new CadastrarClienteInput('Varejo Novo S.A.', 'Varejo Novo'));
+    $outroFornecedor = app(CadastrarFornecedor::class)->execute(new CadastrarFornecedorInput('Beta Ltda', 'Beta'));
+    $outroAm = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create(['name' => 'Bia AM']);
+
+    $registrar = function (string $cliente, string $fornecedor, array $atividade) {
+        $projetoId = $this->postJson('/api/v1/projetos', ['cliente_id' => $cliente, 'fornecedores' => [['fornecedor_id' => $fornecedor]]])->json('id');
+        $this->postJson("/api/v1/projetos/{$projetoId}/atividades", $atividade + [
+            'tipo' => 'Mapeamento', 'status' => 'Não Iniciada', 'data_limite' => '2099-12-31',
+            'account_manager_id' => $this->am->id, 'pre_vendas_id' => $this->pv->id,
+        ])->assertCreated();
+    };
+
+    $registrar($this->clienteId, $this->fornecedorId, ['descricao' => 'Atividade Antiga', 'data_entrada' => '2020-01-10', 'data_limite' => '2020-01-20']); // atrasada
+    $registrar($outroCliente, $outroFornecedor, ['descricao' => 'Atividade Recente', 'data_entrada' => '2026-09-15', 'tipo' => 'Comercial', 'account_manager_id' => $outroAm->id]);
+    $registrar($this->clienteId, $this->fornecedorId, ['descricao' => 'Atividade Do Meio', 'data_entrada' => '2025-05-05', 'status' => 'Concluída', 'data_termino' => '2025-05-06']);
+
+    $tela = Livewire::test(TodasAsAtividades::class)
+        ->assertSet('ordenarPor', 'data_entrada')
+        ->assertSet('sentido', 'desc')
+        ->assertSeeInOrder(['Atividade Recente', 'Atividade Do Meio', 'Atividade Antiga'])
+        ->call('inverterSentido')
+        ->assertSeeInOrder(['Atividade Antiga', 'Atividade Do Meio', 'Atividade Recente'])
+        ->set('ordenarPor', 'cliente')
+        ->assertSeeInOrder(['Banco Teste', 'Varejo Novo'])
+        ->set('ordenarPor', 'campo; DROP TABLE atividades') // valor fora da lista volta ao padrão
+        ->assertSeeInOrder(['Atividade Antiga', 'Atividade Do Meio', 'Atividade Recente']);
+
+    $apenas = function (array $filtros, string $esperada) {
+        $tela = Livewire::test(TodasAsAtividades::class);
+        foreach ($filtros as $campo => $valor) {
+            $tela->set($campo, $valor);
+        }
+        $tela->assertSee($esperada);
+        foreach (array_diff(['Atividade Antiga', 'Atividade Recente', 'Atividade Do Meio'], [$esperada]) as $outra) {
+            $tela->assertDontSee($outra);
+        }
+    };
+
+    $apenas(['clienteId' => $outroCliente], 'Atividade Recente');
+    $apenas(['fornecedorId' => $outroFornecedor], 'Atividade Recente');
+    $apenas(['tipo' => 'Comercial'], 'Atividade Recente');
+    $apenas(['accountManagerId' => $outroAm->id], 'Atividade Recente');
+    $apenas(['status' => 'Concluída'], 'Atividade Do Meio');
+    $apenas(['somenteAtrasadas' => true], 'Atividade Antiga');
+    $apenas(['entradaDe' => '2025-01-01', 'entradaAte' => '2025-12-31'], 'Atividade Do Meio');
+    $apenas(['busca' => 'meio'], 'Atividade Do Meio');
+
+    Livewire::test(TodasAsAtividades::class)
+        ->set('preVendasId', $this->pv->id)
+        ->assertSee(['Atividade Antiga', 'Atividade Recente', 'Atividade Do Meio'])
+        ->set('busca', '100%_')
+        ->assertSee('Nenhuma atividade encontrada')
+        ->call('limparFiltros')
+        ->assertSet('preVendasId', '')
+        ->assertSee('Atividade Recente');
+
+    $this->get('/dashboards/atividades?ordem=cliente&sentido=asc&cliente=nao-e-uuid&de=lixo')->assertOk()->assertSee('Atividade Recente');
 });
