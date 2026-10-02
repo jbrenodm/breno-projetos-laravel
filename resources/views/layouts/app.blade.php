@@ -34,6 +34,28 @@
                                 <i class="bi bi-list-check me-2"></i>Todas as atividades</a></li>
                         </ul>
                     </div>
+                    @auth
+                        <div class="nav-item dropdown ms-md-3">
+                            <a class="nav-link dropdown-toggle @if(request()->routeIs('conta', 'usuarios.*')) active @endif" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-person-circle me-1"></i>{{ auth()->user()->name }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item @if(request()->routeIs('conta')) active @endif" href="{{ route('conta') }}" wire:navigate>
+                                    <i class="bi bi-person-gear me-2"></i>Minha conta</a></li>
+                                @can('admin-geral')
+                                    <li><a class="dropdown-item @if(request()->routeIs('usuarios.*')) active @endif" href="{{ route('usuarios.index') }}" wire:navigate>
+                                        <i class="bi bi-people me-2"></i>Usuários</a></li>
+                                @endcan
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button class="dropdown-item"><i class="bi bi-box-arrow-right me-2"></i>Sair</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    @endauth
                 </div>
             </div>
         </div>

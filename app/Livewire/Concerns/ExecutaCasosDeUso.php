@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Concerns;
 
 use Closure;
+use Src\Shared\Application\AcessoNegadoException;
 use Src\Shared\Application\RecursoNaoEncontradoException;
 use Src\Shared\Domain\RegraDeNegocioException;
 
@@ -20,6 +21,8 @@ trait ExecutaCasosDeUso
 
             return true;
         } catch (RegraDeNegocioException $e) {
+            $this->addError($campoErro, $e->getMessage());
+        } catch (AcessoNegadoException $e) {
             $this->addError($campoErro, $e->getMessage());
         } catch (RecursoNaoEncontradoException) {
             $this->addError($campoErro, 'Registro não encontrado.');

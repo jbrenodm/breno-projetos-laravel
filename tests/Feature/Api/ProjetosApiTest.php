@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
 use Src\Identidade\Domain\Papel;
 use Src\Parceiros\Application\DTOs\CadastrarClienteInput;
 use Src\Parceiros\Application\DTOs\CadastrarFornecedorInput;
@@ -230,4 +231,18 @@ it('não troca cliente de projeto cancelado (RN-11/RN-29)', function () {
     $this->postJson("/api/v1/projetos/{$id}/cancelar")->assertOk();
 
     $this->patchJson("/api/v1/projetos/{$id}/cliente", ['cliente_id' => $novo])->assertUnprocessable();
+});
+
+it('RN-20: com login, só o autor altera a observação da atividade', function () {
+    $id = criarProjetoViaApi($this);
+    $a = $this->postJson("/api/v1/projetos/{$id}/atividades", atividadePayload($this, ['observacao' => 'Do admin']))->json('id');
+    $this->assertDatabaseHas('atividades', ['id' => $a, 'observacao_autor_id' => $this->usuarioLogado->id]);
+
+    Sanctum::actingAs($this->am);
+    $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this, ['observacao' => 'Intruso']))
+        ->assertUnprocessable()->assertJsonPath('error', 'Somente o autor pode alterar a observação desta atividade.');
+    $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this, ['observacao' => 'Do admin']))->assertOk(); // manter é permitido
+
+    Sanctum::actingAs($this->usuarioLogado);
+    $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this, ['observacao' => 'Atualizada pelo autor']))->assertOk();
 });

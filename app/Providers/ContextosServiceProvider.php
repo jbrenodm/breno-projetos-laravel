@@ -5,7 +5,13 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Src\Identidade\Application\Ports\AcessosDoUsuario;
+use Src\Identidade\Application\Ports\HashDeSenha;
 use Src\Identidade\Application\Queries\UsuariosQuery;
+use Src\Identidade\Domain\Repositories\UsuarioRepositoryInterface;
+use Src\Identidade\Infrastructure\Adapters\AcessosDoUsuarioSanctum;
+use Src\Identidade\Infrastructure\Adapters\HashDeSenhaLaravel;
+use Src\Identidade\Infrastructure\Persistence\UsuarioEloquentRepository;
 use Src\Identidade\Infrastructure\Queries\EloquentUsuariosQuery;
 use Src\Parceiros\Application\Queries\ParceirosQuery;
 use Src\Parceiros\Domain\Repositories\ClienteRepositoryInterface;
@@ -38,6 +44,9 @@ final class ContextosServiceProvider extends ServiceProvider
 
         // Identidade
         UsuariosQuery::class => EloquentUsuariosQuery::class,
+        UsuarioRepositoryInterface::class => UsuarioEloquentRepository::class,
+        HashDeSenha::class => HashDeSenhaLaravel::class,
+        AcessosDoUsuario::class => AcessosDoUsuarioSanctum::class,
 
         // Parceiros
         ClienteRepositoryInterface::class => ClienteEloquentRepository::class,

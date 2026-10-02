@@ -4,8 +4,8 @@ use App\Http\Controllers\API\V1\ParceiroController;
 use App\Http\Controllers\API\V1\ProjetoController;
 use Illuminate\Support\Facades\Route;
 
-// TODO (Roadmap fase 3): proteger com autenticação (Sanctum) quando o login existir.
-Route::prefix('v1')->group(function (): void {
+// RN-34: a API exige token pessoal (Sanctum), gerado em "Minha conta".
+Route::prefix('v1')->middleware(['auth:sanctum', 'ativo', 'troca-senha'])->group(function (): void {
     Route::get('projetos', [ProjetoController::class, 'listar']);
     Route::post('projetos', [ProjetoController::class, 'registrar']);
     Route::get('projetos/{projetoId}', [ProjetoController::class, 'detalhar']);

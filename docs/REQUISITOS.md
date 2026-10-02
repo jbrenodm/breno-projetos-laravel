@@ -25,6 +25,7 @@ com acompanhamento das **Atividades** executadas por Account Managers (AM) e Ana
 | **Solução** | Produto/serviço do catálogo de um Fornecedor. |
 | **AM** | Account Manager (usuário com papel `account_manager`). |
 | **PV** | Analista de Pré-vendas (usuário com papel `pre_vendas`). |
+| **Admin Geral do Sistema** | Usuário com papel `admin_geral`: gerencia usuários e permissões (RN-35). |
 
 ## 3. Bounded Contexts
 
@@ -111,8 +112,30 @@ Automação (decidida na fase de desenvolvimento do backend):
 
 ### 4.5 Usuários e permissões
 - **RN-25** AM e PV **não são tabelas próprias**: são usuários com papéis (`account_manager`, `pre_vendas`, `admin_geral`).
-- **RN-26** Inicialmente todos os usuários podem alterar status. No futuro um Admin Geral distribuirá permissões (RBAC).
+- **RN-26** Inicialmente todos os usuários podem alterar status. No futuro um Admin Geral do Sistema distribuirá permissões (RBAC).
 - **RN-27 (BOLA)** A autorização acontece no **Caso de Uso** (não só em rotas/middleware), usando o ID do usuário autenticado.
+
+### 4.6 Autenticação e cadastro de usuários *(decidido em 02/10/2026)*
+- **RN-33 (login)** Acesso por e-mail e senha. Usuário **inativo** não entra; se for inativado com a sessão aberta, é desconectado
+  na requisição seguinte. Máximo de 5 tentativas por minuto por e-mail + IP. A mensagem de erro é genérica
+  (não revela se o e-mail existe). Há logout ("Sair").
+- **RN-34 (tudo exige login)** Todas as telas e a API exigem autenticação. Telas: sessão. API: **token pessoal** (Laravel Sanctum),
+  gerado pelo próprio usuário em "Minha conta", exibido uma única vez e revogável. Inativar o usuário revoga os tokens dele.
+- **RN-35 (cadastro de usuários)** Só o **Admin Geral do Sistema** cadastra e edita usuários: nome, e-mail (único, sem diferenciar maiúsculas),
+  papéis (pelo menos 1) e situação (ativo/inativo). Usuário inativo some das listas de AM/PV para novas atividades;
+  atividades existentes não mudam (como na RN-24).
+- **RN-36 (senha temporária)** No cadastro o Admin define uma **senha temporária**; no primeiro acesso o usuário é obrigado a trocá-la
+  antes de usar o sistema. O Admin pode redefinir uma senha temporária a qualquer momento (troca obrigatória de novo).
+- **RN-37 (esqueci minha senha)** Na tela de login, o usuário pede um link de redefinição por e-mail, válido por 60 minutos.
+  A resposta não revela se o e-mail existe; usuários inativos não recebem o link. Requer SMTP configurado no `.env`.
+- **RN-38 (política de senha)** Mínimo de 8 caracteres, com letras e números; a nova senha deve ser diferente da atual.
+- **RN-39 (sempre há um Admin)** Nenhuma operação pode deixar o sistema sem **Admin Geral do Sistema ativo** (inativar o último Admin ou
+  remover o papel dele é rejeitado).
+- **RN-40 (minha conta)** Todo usuário pode trocar a própria senha (informando a atual) e gerenciar seus tokens de API.
+- **Instalação:** num banco sem Admin Geral do Sistema ativo, o primeiro Admin é criado pelo terminal com
+  `php artisan usuarios:criar-admin {email} {nome}` (pede a senha). Havendo um Admin ativo, o comando é recusado (RN-35/RN-39).
+- Com o login, a **RN-20** (só o autor edita a observação) passa a valer. A carteira do AM (D-04) continua em aberto:
+  por enquanto todo usuário logado vê todos os projetos.
 
 ## 5. Modelo de domínio
 
@@ -138,7 +161,9 @@ Automação (decidida na fase de desenvolvimento do backend):
 
 **solucoes**: `id uuid pk`, `fornecedor_id uuid fk→fornecedores cascade`, `nome varchar`, `descricao text null`, `ativo bool default true`, timestamps. Único: (`fornecedor_id`, `nome`).
 
-**users**: `id uuid pk`, `name`, `email unique`, `password`, `ativo bool`, timestamps (+ campos padrão do Laravel).
+**users**: `id uuid pk`, `name`, `email unique`, `password`, `ativo bool`, `deve_trocar_senha bool default false` (RN-36), timestamps (+ campos padrão do Laravel).
+
+**personal_access_tokens**: tabela padrão do Laravel Sanctum (tokens de API, RN-34).
 
 **roles**: `id uuid pk`, `nome unique` (`account_manager`, `pre_vendas`, `admin_geral`), `descricao`.
 
@@ -165,6 +190,11 @@ Automação (decidida na fase de desenvolvimento do backend):
 | `EditarCliente` / `EditarFornecedor` | Parceiros | RN-30 |
 | `AlterarSituacaoCliente` / `AlterarSituacaoFornecedor` | Parceiros | RN-31 (ativar/inativar) |
 | `EditarSolucao` / `AlterarSituacaoSolucao` | Parceiros | RN-31, RN-32 |
+| `CadastrarUsuario` / `EditarUsuario` / `AlterarSituacaoUsuario` | Identidade | RN-35, RN-39 (só Admin Geral do Sistema) |
+| `RedefinirSenhaTemporaria` | Identidade | RN-36 (só Admin Geral do Sistema) |
+| `TrocarSenha` / `RedefinirSenhaPorLink` | Identidade | RN-36..38, RN-40 |
+| `GerarTokenDeApi` / `RevogarTokenDeApi` | Identidade | RN-34, RN-40 |
+| `CriarPrimeiroAdmin` | Identidade | Instalação (comando `usuarios:criar-admin`) |
 | `RegistrarNovoProjeto` | Projetos | RN-01..07 |
 | `RegistrarNovaAtividade` | Projetos | RN-12..20 |
 | `AlterarStatusAtividade` | Projetos | RN-16, RN-18 (inclui concluir) |
@@ -205,8 +235,9 @@ app/                 Apresentação: Livewire, Controllers API, FormRequests, Pr
 
 1. ✅ Domínio de Projetos/Atividades e Fornecedores (fase anterior).
 2. ✅ Realinhamento aos requisitos (este documento) + ambiente Ubuntu 26.04.
-3. ⏳ Autenticação (login) + papéis + regra de observação por autor + BOLA (carteira do AM).
-4. 🔶 Cadastro, edição e ativação/inativação de Clientes, Fornecedores e Soluções ✅ (RN-30..32); cadastro de Usuários ⏳.
+3. 🔶 Login/logout, esqueci minha senha, tokens de API e cadastro de usuários ✅ (RN-33..40); observação por autor ✅ (RN-20);
+   BOLA da carteira do AM ⏳ (D-04).
+4. ✅ Cadastro, edição e ativação/inativação de Clientes, Fornecedores e Soluções (RN-30..32) e de Usuários (RN-35).
 5. 🔶 Edição de atividade (RN-28) e troca de cliente do projeto (RN-29) ✅; edição de Código de Oportunidade ⏳.
 6. 🔶 Menu **Dashboards** (ao lado de Projetos, Clientes e Fornecedores), que agrupa dashboards e relatórios:
    tela "Todas as atividades" ✅ (somente leitura: cliente em destaque, depois a atividade e os demais dados).
@@ -235,5 +266,5 @@ app/                 Apresentação: Livewire, Controllers API, FormRequests, Pr
 
 - **D-01** Quando todas as atividades abertas estiverem `Parada`, o projeto deve ficar `Parado` automaticamente? (hoje fica `Em Andamento`)
 - **D-02** Mover para `Parada` exige justificativa obrigatória na observação?
-- **D-03** Quem pode cancelar projeto (todos vs. só Admin Geral)?
+- **D-03** Quem pode cancelar projeto (todos vs. só Admin Geral do Sistema)?
 - **D-04** Carteira do AM (BOLA): o AM vê só projetos em que é AM de alguma atividade, ou há um "dono" do projeto?

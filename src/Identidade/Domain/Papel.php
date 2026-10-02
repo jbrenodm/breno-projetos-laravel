@@ -16,7 +16,7 @@ enum Papel: string
         return match ($this) {
             self::ACCOUNT_MANAGER => 'Account Manager',
             self::PRE_VENDAS => 'Pré-vendas',
-            self::ADMIN_GERAL => 'Admin Geral',
+            self::ADMIN_GERAL => 'Admin Geral do Sistema',
         };
     }
 }
