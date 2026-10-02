@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Src\Projetos\Domain\ValueObjects;
 
+/** Seção 4.2 do REQUISITOS.md */
 enum StatusProjeto: string
 {
     case NAO_INICIADO = 'Não Iniciado';

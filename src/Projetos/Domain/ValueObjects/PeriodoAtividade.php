@@ -4,50 +4,72 @@ declare(strict_types=1);
 
 namespace Src\Projetos\Domain\ValueObjects;
 
-use InvalidArgumentException;
 use DateTimeImmutable;
+use Src\Projetos\Domain\Exceptions\PeriodoInvalidoException;
 
 /**
- * Encapsula as regras de negócio temporais de uma Atividade.
+ * RN-18: datas da atividade (precisão de dia).
  */
 final readonly class PeriodoAtividade
 {
+    public DateTimeImmutable $dataEntrada;
+
+    public DateTimeImmutable $dataLimite;
+
+    public ?DateTimeImmutable $dataInicio;
+
+    public ?DateTimeImmutable $dataTermino;
+
     public function __construct(
-        public DateTimeImmutable $dataEntrada,
-        public DateTimeImmutable $deadline,
-        public ?DateTimeImmutable $dataTermino = null
+        DateTimeImmutable $dataEntrada,
+        DateTimeImmutable $dataLimite,
+        ?DateTimeImmutable $dataInicio = null,
+        ?DateTimeImmutable $dataTermino = null,
     ) {
-        // Invariante: O prazo final não pode ser inventado no passado
-        if ($this->deadline < $this->dataEntrada) {
-            throw new InvalidArgumentException("O prazo (deadline) não pode ser anterior à data de entrada.");
+        $this->dataEntrada = self::dia($dataEntrada);
+        $this->dataLimite = self::dia($dataLimite);
+        $this->dataInicio = $dataInicio ? self::dia($dataInicio) : null;
+        $this->dataTermino = $dataTermino ? self::dia($dataTermino) : null;
+
+        if ($this->dataLimite < $this->dataEntrada) {
+            throw new PeriodoInvalidoException('A data limite não pode ser anterior à data de entrada.');
         }
 
-        // Invariante: Não é possível terminar algo antes de começar
+        if ($this->dataInicio !== null && $this->dataInicio < $this->dataEntrada) {
+            throw new PeriodoInvalidoException('A data de início não pode ser anterior à data de entrada.');
+        }
+
         if ($this->dataTermino !== null && $this->dataTermino < $this->dataEntrada) {
-            throw new InvalidArgumentException("A data de término não pode ser anterior à data de entrada.");
+            throw new PeriodoInvalidoException('A data de término não pode ser anterior à data de entrada.');
+        }
+
+        if ($this->dataTermino !== null && $this->dataInicio !== null && $this->dataTermino < $this->dataInicio) {
+            throw new PeriodoInvalidoException('A data de término não pode ser anterior à data de início.');
         }
     }
 
-    /**
-     * Padrão de Mutação por Substituição: Como o objeto é readonly, 
-     * geramos uma nova instância com o estado alterado.
-     */
-    public function concluir(DateTimeImmutable $dataTermino): self
+    public function comInicio(DateTimeImmutable $dataInicio): self
     {
-        return new self(
-            dataEntrada: $this->dataEntrada,
-            deadline: $this->deadline,
-            dataTermino: $dataTermino
-        );
+        return new self($this->dataEntrada, $this->dataLimite, $dataInicio, $this->dataTermino);
     }
 
-    /**
-     * Verifica se a atividade já passou do prazo estipulado.
-     */
-    public function estaAtrasado(DateTimeImmutable $dataComparacao): bool
+    public function comTermino(DateTimeImmutable $dataTermino): self
     {
-        $fimDasOperacoes = $this->dataTermino ?? $dataComparacao;
-        
-        return $fimDasOperacoes > $this->deadline;
+        return new self($this->dataEntrada, $this->dataLimite, $this->dataInicio, $dataTermino);
+    }
+
+    public function semTermino(): self
+    {
+        return new self($this->dataEntrada, $this->dataLimite, $this->dataInicio, null);
+    }
+
+    public function estaAtrasado(DateTimeImmutable $hoje): bool
+    {
+        return ($this->dataTermino ?? self::dia($hoje)) > $this->dataLimite;
+    }
+
+    private static function dia(DateTimeImmutable $data): DateTimeImmutable
+    {
+        return $data->setTime(0, 0);
     }
 }

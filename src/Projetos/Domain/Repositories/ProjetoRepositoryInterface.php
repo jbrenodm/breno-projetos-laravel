@@ -8,7 +8,7 @@ use Src\Projetos\Domain\Entities\Projeto;
 
 interface ProjetoRepositoryInterface
 {
-    public function findById(string $id): ?Projeto;
+    public function buscarPorId(string $id): ?Projeto;
 
-    public function save(Projeto $projeto): void;
+    public function salvar(Projeto $projeto): void;
 }

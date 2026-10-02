@@ -4,28 +4,41 @@ declare(strict_types=1);
 
 namespace Src\Projetos\Domain\ValueObjects;
 
-use InvalidArgumentException;
+use Src\Projetos\Domain\Exceptions\RegraDeProjetoException;
 
+/** RN-02: código opcional vindo do comercial/CRM. */
 final readonly class CodigoOportunidade
 {
-    // Declaramos a propriedade aqui dentro. Como a classe inteira é readonly,
-    // esta propriedade também será implicitamente readonly.
-    private string $value;
+    private const TAMANHO_MAXIMO = 50;
 
-    public function __construct(string $value)
+    private string $valor;
+
+    public function __construct(string $valor)
     {
-        $cleanValue = trim($value);
+        $limpo = trim($valor);
 
-        if (empty($cleanValue)) {
-            throw new InvalidArgumentException("O código da oportunidade não pode ser uma string vazia.");
+        if ($limpo === '') {
+            throw new RegraDeProjetoException('O código da oportunidade não pode ser vazio.');
         }
 
-        // Inicializamos uma única vez após a sanitização e validação
-        $this->value = $cleanValue;
+        if (mb_strlen($limpo) > self::TAMANHO_MAXIMO) {
+            throw new RegraDeProjetoException('O código da oportunidade deve ter no máximo 50 caracteres.');
+        }
+
+        if (preg_match('/^[\p{L}\p{N}\-_.\/ ]+$/u', $limpo) !== 1) {
+            throw new RegraDeProjetoException('O código da oportunidade contém caracteres inválidos.');
+        }
+
+        $this->valor = $limpo;
+    }
+
+    public static function opcional(?string $valor): ?self
+    {
+        return ($valor === null || trim($valor) === '') ? null : new self($valor);
     }
 
     public function toString(): string
     {
-        return $this->value;
+        return $this->valor;
     }
 }

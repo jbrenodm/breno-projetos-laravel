@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace Src\Projetos\Domain\ValueObjects;
 
-use InvalidArgumentException;
+use Src\Projetos\Domain\Exceptions\RegraDeProjetoException;
+use Src\Shared\Domain\Uuid;
 
+/** RN-01: identificador interno do Projeto (UUID), imutável. */
 final readonly class ProjetoId
 {
-    private function __construct(private string $value)
-    {
-        // Validação simples de formato UUIDv4
-        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $value)) {
-            throw new InvalidArgumentException("O identificador do projeto deve ser um UUIDv4 válido.");
-        }
-    }
+    private function __construct(private string $valor) {}
 
-    public static function fromString(string $value): self
+    public static function fromString(string $valor): self
     {
-        return new self($value);
+        if (! Uuid::ehValido($valor)) {
+            throw new RegraDeProjetoException('O identificador do projeto deve ser um UUID válido.');
+        }
+
+        return new self(strtolower($valor));
     }
 
     public function toString(): string
     {
-        return $this->value;
+        return $this->valor;
     }
 }

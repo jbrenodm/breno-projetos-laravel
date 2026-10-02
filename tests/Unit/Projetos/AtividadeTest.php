@@ -1,0 +1,92 @@
+<?php
+
+declare(strict_types=1);
+
+use Src\Projetos\Domain\Entities\Atividade;
+use Src\Projetos\Domain\Exceptions\ObservacaoNaoPermitidaException;
+use Src\Projetos\Domain\Exceptions\PeriodoInvalidoException;
+use Src\Projetos\Domain\Exceptions\RegraDeProjetoException;
+use Src\Projetos\Domain\Exceptions\TransicaoDeStatusInvalidaException;
+use Src\Projetos\Domain\ValueObjects\Observacao;
+use Src\Projetos\Domain\ValueObjects\PeriodoAtividade;
+use Src\Projetos\Domain\ValueObjects\StatusAtividade;
+use Src\Projetos\Domain\ValueObjects\TipoAtividade;
+
+function atividade(StatusAtividade $status = StatusAtividade::NAO_INICIADA, ?PeriodoAtividade $periodo = null, ?Observacao $obs = null): Atividade
+{
+    return Atividade::registrar(
+        uuid(), '  <b>Levantar ambiente</b> ', TipoAtividade::MAPEAMENTO, $status,
+        $periodo ?? new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30')),
+        uuid(), uuid(), $obs, dia('2026-10-02'),
+    );
+}
+
+it('sanitiza a descrição (sem HTML)', function () {
+    expect(atividade()->getDescricao())->toBe('Levantar ambiente');
+});
+
+it('RN-17: registra atividade já concluída (histórico) com término informado', function () {
+    $a = atividade(StatusAtividade::CONCLUIDA, new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30'), dia('2026-09-02'), dia('2026-09-20')));
+
+    expect($a->getStatus())->toBe(StatusAtividade::CONCLUIDA)
+        ->and($a->getPeriodo()->dataTermino->format('Y-m-d'))->toBe('2026-09-20');
+});
+
+it('RN-18: concluída sem término usa a data de hoje', function () {
+    expect(atividade(StatusAtividade::CONCLUIDA)->getPeriodo()->dataTermino->format('Y-m-d'))->toBe('2026-10-02');
+});
+
+it('RN-18: registrada Em Andamento sem início usa a data de entrada', function () {
+    expect(atividade(StatusAtividade::EM_ANDAMENTO)->getPeriodo()->dataInicio->format('Y-m-d'))->toBe('2026-09-01');
+});
+
+it('RN-18: término só existe em atividade concluída', function () {
+    atividade(StatusAtividade::EM_ANDAMENTO, new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30'), null, dia('2026-09-10')));
+})->throws(PeriodoInvalidoException::class);
+
+it('RN-18: não iniciada não tem data de início', function () {
+    atividade(StatusAtividade::NAO_INICIADA, new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30'), dia('2026-09-03')));
+})->throws(PeriodoInvalidoException::class);
+
+it('RN-18: data limite não pode ser anterior à entrada', function () {
+    new PeriodoAtividade(dia('2026-09-10'), dia('2026-09-01'));
+})->throws(PeriodoInvalidoException::class, 'A data limite não pode ser anterior à data de entrada.');
+
+it('RN-18: término não pode ser anterior ao início', function () {
+    new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30'), dia('2026-09-10'), dia('2026-09-05'));
+})->throws(PeriodoInvalidoException::class);
+
+it('RN-16/18: iniciar preenche data de início; concluir preenche término', function () {
+    $a = atividade();
+    $a->alterarStatus(StatusAtividade::EM_ANDAMENTO, null, dia('2026-09-05'));
+    $a->alterarStatus(StatusAtividade::PARADA, null, dia('2026-09-06'));
+    $a->alterarStatus(StatusAtividade::EM_ANDAMENTO, null, dia('2026-09-08')); // retomada não muda o início
+    $a->alterarStatus(StatusAtividade::CONCLUIDA, dia('2026-09-15'), dia('2026-10-02'));
+
+    expect($a->getPeriodo()->dataInicio->format('Y-m-d'))->toBe('2026-09-05')
+        ->and($a->getPeriodo()->dataTermino->format('Y-m-d'))->toBe('2026-09-15');
+});
+
+it('RN-16: transições proibidas', function (StatusAtividade $de, StatusAtividade $para) {
+    $a = atividade($de);
+    $a->alterarStatus($para, null, dia('2026-10-02'));
+})->with([
+    'concluída é final' => [StatusAtividade::CONCLUIDA, StatusAtividade::EM_ANDAMENTO],
+    'não volta a não iniciada' => [StatusAtividade::EM_ANDAMENTO, StatusAtividade::NAO_INICIADA],
+    'mesmo status' => [StatusAtividade::PARADA, StatusAtividade::PARADA],
+])->throws(TransicaoDeStatusInvalidaException::class);
+
+it('RN-20: só o autor edita a observação', function () {
+    $autor = uuid();
+    $a = atividade(obs: new Observacao('Cliente pediu PoC', $autor));
+
+    $a->registrarObservacao('Atualizado pelo autor', $autor);
+    expect($a->getObservacao()->texto)->toBe('Atualizado pelo autor');
+
+    $a->registrarObservacao('Intruso', uuid());
+})->throws(ObservacaoNaoPermitidaException::class);
+
+it('valida AM/PV como UUID', function () {
+    Atividade::registrar(uuid(), 'x', TipoAtividade::COMERCIAL, StatusAtividade::NAO_INICIADA,
+        new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30')), 'am-invalido', uuid(), null, dia('2026-10-02'));
+})->throws(RegraDeProjetoException::class);

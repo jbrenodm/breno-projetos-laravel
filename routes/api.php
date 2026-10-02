@@ -1,15 +1,20 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\API\V1\ParceiroController;
 use App\Http\Controllers\API\V1\ProjetoController;
-use App\Http\Controllers\API\V1\FornecedorController;
+use Illuminate\Support\Facades\Route;
 
-// Rotas de Projetos
-Route::post('/v1/projetos', [ProjetoController::class, 'registrarProjeto']);
-Route::get('/v1/projetos/{projetoId}', [ProjetoController::class, 'detalharProjeto']);
-Route::post('/v1/projetos/{projetoId}/atividades', [ProjetoController::class, 'registrarAtividade']);
-Route::patch('/v1/projetos/{projetoId}/atividades/{atividadeId}/concluir', [ProjetoController::class, 'concluirAtividade']);
+// TODO (Roadmap fase 3): proteger com autenticação (Sanctum) quando o login existir.
+Route::prefix('v1')->group(function (): void {
+    Route::get('projetos', [ProjetoController::class, 'listar']);
+    Route::post('projetos', [ProjetoController::class, 'registrar']);
+    Route::get('projetos/{projetoId}', [ProjetoController::class, 'detalhar']);
+    Route::post('projetos/{projetoId}/cancelar', [ProjetoController::class, 'cancelar']);
+    Route::post('projetos/{projetoId}/atividades', [ProjetoController::class, 'registrarAtividade']);
+    Route::patch('projetos/{projetoId}/atividades/{atividadeId}/status', [ProjetoController::class, 'alterarStatusAtividade']);
 
-// Rotas de Fornecedores
-Route::get('/v1/fornecedores', [FornecedorController::class, 'listar']);
-Route::post('/v1/fornecedores', [FornecedorController::class, 'cadastrar']);
+    Route::get('clientes', [ParceiroController::class, 'listarClientes']);
+    Route::post('clientes', [ParceiroController::class, 'cadastrarCliente']);
+    Route::get('fornecedores', [ParceiroController::class, 'listarFornecedores']);
+    Route::post('fornecedores', [ParceiroController::class, 'cadastrarFornecedor']);
+});

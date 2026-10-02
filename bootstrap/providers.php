@@ -1,9 +1,9 @@
 <?php
 
 use App\Providers\AppServiceProvider;
-use App\Providers\ProjetosServiceProvider;
+use App\Providers\ContextosServiceProvider;
 
 return [
     AppServiceProvider::class,
-    ProjetosServiceProvider::class, // O nosso provedor de Projetos entra aqui!
+    ContextosServiceProvider::class,
 ];

@@ -6,6 +6,8 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Src\Identidade\Domain\Papel;
+use Src\Identidade\Infrastructure\Persistence\RoleModel;
 
 /**
  * @extends Factory<User>
@@ -31,6 +33,20 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];
+    }
+
+    /**
+     * Usuário com um papel (account_manager, pre_vendas, admin_geral).
+     */
+    public function comPapel(Papel $papel): static
+    {
+        return $this->afterCreating(function (User $user) use ($papel) {
+            $role = RoleModel::query()->firstOrCreate(
+                ['nome' => $papel->value],
+                ['descricao' => $papel->rotulo()],
+            );
+            $user->roles()->syncWithoutDetaching([$role->id]);
+        });
     }
 
     /**

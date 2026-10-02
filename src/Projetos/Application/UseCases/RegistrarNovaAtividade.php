@@ -5,46 +5,57 @@ declare(strict_types=1);
 namespace Src\Projetos\Application\UseCases;
 
 use Src\Projetos\Application\DTOs\RegistrarAtividadeInput;
+use Src\Projetos\Application\Ports\VerificadorDeUsuarios;
+use Src\Projetos\Domain\Exceptions\RegraDeProjetoException;
+use Src\Projetos\Domain\Exceptions\ResponsavelObrigatorioException;
 use Src\Projetos\Domain\Repositories\ProjetoRepositoryInterface;
-use Src\Projetos\Domain\ValueObjects\StatusAtividade;
+use Src\Projetos\Domain\ValueObjects\Observacao;
 use Src\Projetos\Domain\ValueObjects\PeriodoAtividade;
-use Src\Projetos\Domain\Exceptions\AtividadeNaoEncontradaException;
-use InvalidArgumentException;
-use Illuminate\Support\Str;
+use Src\Projetos\Domain\ValueObjects\StatusAtividade;
+use Src\Projetos\Domain\ValueObjects\TipoAtividade;
+use Src\Shared\Application\Ports\GeradorDeId;
+use Src\Shared\Application\Ports\Relogio;
+use Src\Shared\Application\RecursoNaoEncontradoException;
 
+/** RN-12..RN-20 */
 final readonly class RegistrarNovaAtividade
 {
-    // O Laravel vai injetar automaticamente o repositório concreto aqui através da Interface
     public function __construct(
-        private ProjetoRepositoryInterface $projetoRepository
+        private ProjetoRepositoryInterface $projetos,
+        private VerificadorDeUsuarios $usuarios,
+        private GeradorDeId $geradorDeId,
+        private Relogio $relogio,
     ) {}
 
-    public function execute(RegistrarAtividadeInput $input): void
+    public function execute(RegistrarAtividadeInput $input): string
     {
-        // 1. Busca o Agregado Root
-        $projeto = $this->projetoRepository->findById($input->projetoId);
+        $projeto = $this->projetos->buscarPorId($input->projetoId)
+            ?? throw RecursoNaoEncontradoException::para('Projeto', $input->projetoId);
 
-        if ($projeto === null) {
-            throw new InvalidArgumentException("Projeto com ID {$input->projetoId} não foi encontrado.");
+        if ($input->accountManagerId !== null && ! $this->usuarios->ehAccountManagerAtivo($input->accountManagerId)) {
+            throw new ResponsavelObrigatorioException('O Account Manager informado não existe, está inativo ou não possui esse papel.');
         }
 
-        // 2. Cria os Value Objects temporais baseados no input
-        $periodo = new PeriodoAtividade(
-            dataEntrada: $input->dataEntrada,
-            deadline: $input->deadline
-        );
+        if ($input->preVendasId !== null && ! $this->usuarios->ehPreVendasAtivo($input->preVendasId)) {
+            throw new ResponsavelObrigatorioException('O Pré-vendas informado não existe, está inativo ou não possui esse papel.');
+        }
 
-        // 3. Delega para o Agregado executar as suas regras de negócio e validações
-        $projeto->adicionarAtividade(
-            idAtividade: Str::uuid()->toString(), // Gera o ID na aplicação (UUIDv4)
+        $atividade = $projeto->adicionarAtividade(
+            atividadeId: $this->geradorDeId->gerar(),
             descricao: $input->descricao,
-            statusAtividade: StatusAtividade::from($input->statusActivity ?? $input->statusAtividade),
-            periodo: $periodo,
+            tipo: TipoAtividade::tryFrom($input->tipo)
+                ?? throw new RegraDeProjetoException("Tipo de atividade inválido: {$input->tipo}."),
+            status: StatusAtividade::tryFrom($input->status)
+                ?? throw new RegraDeProjetoException("Status de atividade inválido: {$input->status}."),
+            periodo: new PeriodoAtividade($input->dataEntrada, $input->dataLimite, $input->dataInicio, $input->dataTermino),
             accountManagerId: $input->accountManagerId,
-            preVendasId: $input->preVendasId
+            preVendasId: $input->preVendasId,
+            observacao: Observacao::opcional($input->observacao, $input->usuarioExecutorId),
+            hoje: $this->relogio->hoje(),
         );
 
-        // 4. Salva o estado atualizado do Agregado de forma atómica
-        $this->projetoRepository->save($projeto);
+        $this->projetos->salvar($projeto);
+
+        return $atividade->getId();
     }
 }

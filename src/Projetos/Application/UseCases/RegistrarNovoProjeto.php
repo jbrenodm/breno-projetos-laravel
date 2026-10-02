@@ -5,50 +5,59 @@ declare(strict_types=1);
 namespace Src\Projetos\Application\UseCases;
 
 use Src\Projetos\Application\DTOs\RegistrarProjetoInput;
-use Src\Projetos\Domain\Repositories\ProjetoRepositoryInterface;
+use Src\Projetos\Application\Ports\VerificadorDeParceiros;
 use Src\Projetos\Domain\Entities\Projeto;
-use Src\Projetos\Domain\ValueObjects\ProjetoId;
-use Src\Projetos\Domain\ValueObjects\StatusProjeto;
+use Src\Projetos\Domain\Exceptions\FornecedorObrigatorioException;
+use Src\Projetos\Domain\Exceptions\RegraDeProjetoException;
+use Src\Projetos\Domain\Repositories\ProjetoRepositoryInterface;
 use Src\Projetos\Domain\ValueObjects\CodigoOportunidade;
+use Src\Projetos\Domain\ValueObjects\ProjetoId;
 use Src\Projetos\Domain\ValueObjects\VinculoFornecedor;
-use Illuminate\Support\Str;
+use Src\Shared\Application\Ports\GeradorDeId;
 
+/** RN-01..RN-07 */
 final readonly class RegistrarNovoProjeto
 {
     public function __construct(
-        private ProjetoRepositoryInterface $projetoRepository
+        private ProjetoRepositoryInterface $projetos,
+        private VerificadorDeParceiros $parceiros,
+        private GeradorDeId $geradorDeId,
     ) {}
 
     public function execute(RegistrarProjetoInput $input): string
     {
-        // 1. Gera uma nova identidade única (UUIDv4) para o Projeto
-        $projetoId = ProjetoId::fromString(Str::uuid()->toString());
+        if (! $this->parceiros->clienteEstaAtivo($input->clienteId)) {
+            throw new RegraDeProjetoException('O cliente informado não existe ou está inativo.');
+        }
 
-        // 2. Mapeia os arrays brutos do DTO para Value Objects de domínio
-        $fornecedoresDoDominio = array_map(function (array $item) {
-            return new VinculoFornecedor(
-                fornecedorId: $item['fornecedor_id'],
-                solucaoId: $item['solucao_id'] ?? null
-            );
-        }, $input->fornecedores);
+        $vinculos = array_map(fn (array $item) => $this->criarVinculo($item), $input->fornecedores);
 
-        $codigoOportunidade = $input->codigoOportunidade 
-            ? new CodigoOportunidade($input->codigoOportunidade) 
-            : null;
-
-        // 3. Cria a entidade rica. As invariantes de negócio são disparadas no construtor
-        $projeto = new Projeto(
-            id: $projetoId,
-            clienteId: $input->clienteId,
-            fornecedores: $fornecedoresDoDominio,
-            status: StatusProjeto::NAO_INICIADO,
-            codigoOportunidade: $codigoOportunidade
+        $projeto = Projeto::criar(
+            ProjetoId::fromString($this->geradorDeId->gerar()),
+            $input->clienteId,
+            $vinculos,
+            CodigoOportunidade::opcional($input->codigoOportunidade),
         );
 
-        // 4. Persiste o agregado completo no PostgreSQL através da abstração
-        $this->projetoRepository->save($projeto);
+        $this->projetos->salvar($projeto);
 
-        // Retorna o ID gerado para que a API possa informar ao cliente HTTP
         return $projeto->getId();
+    }
+
+    /** @param array{fornecedor_id?: ?string, solucao_id?: ?string} $item */
+    private function criarVinculo(array $item): VinculoFornecedor
+    {
+        $vinculo = new VinculoFornecedor((string) ($item['fornecedor_id'] ?? ''), $item['solucao_id'] ?? null);
+
+        if (! $this->parceiros->fornecedorEstaAtivo($vinculo->fornecedorId)) {
+            throw new FornecedorObrigatorioException('O fornecedor informado não existe ou está inativo.');
+        }
+
+        if ($vinculo->solucaoId !== null
+            && ! $this->parceiros->solucaoAtivaPertenceAoFornecedor($vinculo->solucaoId, $vinculo->fornecedorId)) {
+            throw new FornecedorObrigatorioException('A solução informada não pertence ao fornecedor ou está inativa.');
+        }
+
+        return $vinculo;
     }
 }

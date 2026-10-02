@@ -3,48 +3,22 @@
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-/*
-|--------------------------------------------------------------------------
-| Test Case
-|--------------------------------------------------------------------------
-|
-| The closure you provide to your test functions is always bound to a specific PHPUnit test
-| case class. By default, that class is "PHPUnit\Framework\TestCase". Of course, you may
-| need to change it using the "pest()" function to bind different classes or traits.
-|
-*/
-
 pest()->extend(TestCase::class)
- // ->use(RefreshDatabase::class)
+    ->use(RefreshDatabase::class)
     ->in('Feature');
 
-/*
-|--------------------------------------------------------------------------
-| Expectations
-|--------------------------------------------------------------------------
-|
-| When you're writing tests, you often need to check that values meet certain conditions. The
-| "expect()" function gives you access to a set of "expectations" methods that you can use
-| to assert different things. Of course, you may extend the Expectation API at any time.
-|
-*/
-
-expect()->extend('toBeOne', function () {
-    return $this->toBe(1);
-});
-
-/*
-|--------------------------------------------------------------------------
-| Functions
-|--------------------------------------------------------------------------
-|
-| While Pest is very powerful out-of-the-box, you may have some testing code specific to your
-| project that you don't want to repeat in every file. Here you can also expose helpers as
-| global functions to help you to reduce the number of lines of code in your test files.
-|
-*/
-
-function something()
+/** Data sem horário para testes de domínio. */
+function dia(string $data): DateTimeImmutable
 {
-    // ..
+    return new DateTimeImmutable($data.' 00:00:00');
+}
+
+/** UUID v4 aleatório sem depender do Laravel (testes unitários). */
+function uuid(): string
+{
+    $b = random_bytes(16);
+    $b[6] = chr((ord($b[6]) & 0x0F) | 0x40);
+    $b[8] = chr((ord($b[8]) & 0x3F) | 0x80);
+
+    return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($b), 4));
 }
