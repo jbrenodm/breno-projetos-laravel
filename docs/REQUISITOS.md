@@ -221,6 +221,10 @@ Leituras para telas usam **Queries** (`Application/Queries`), implementadas na I
 ## 8. Arquitetura
 
 - **Laravel 13 + PHP 8.3+** (dev: PHP 8.5 no Ubuntu 26.04), **PostgreSQL**, **Pest 4**.
+- **Docker:** desenvolvimento com `docker-compose.yml` (código montado, `artisan serve`); produção com `docker-compose.producao.yml`
+  (Apache + PHP 8.5 com o código na imagem, PostgreSQL 18 sem porta exposta, acesso por IP e porta, sem HTTPS por enquanto).
+  Na produção, o container roda as migrations e garante os papéis a cada início. Os testes sempre usam o banco
+  `breno_projetos_testing`, inclusive no Docker (`phpunit.xml`). *(Decidido em 03/10/2026.)*
 - **Front-end:** Livewire 4 (componentes de classe em `app/Livewire`, views em `resources/views/livewire`), Alpine.js (embutido no Livewire), Bootstrap 5.
 - **Clean Architecture + DDD:**
 

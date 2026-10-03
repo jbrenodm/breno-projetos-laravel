@@ -1,0 +1,41 @@
+# Produção (servidor próprio, acesso por http://IP:porta). Instalação: scripts/instalar-producao.sh
+# O .env do servidor define COMPOSE_FILE=docker-compose.producao.yml, então basta "docker compose ...".
+name: controle-projetos
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/producao/Dockerfile
+    image: controle-projetos-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+    ports:
+      - "${APP_PORTA:-8000}:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:?Defina DB_DATABASE no .env}
+      POSTGRES_USER: ${DB_USERNAME:?Defina DB_USERNAME no .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD no .env}
+      TZ: America/Sao_Paulo
+    volumes:
+      - pgdata:/var/lib/postgresql
+    # Sem "ports": o banco só é acessível pelo container app.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

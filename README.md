@@ -37,6 +37,29 @@ docker compose exec app scripts/iniciar-do-zero.sh   # 1ª vez: cria papéis e o
 | Parar | `docker compose down` (os dados ficam no volume `pgdata`) |
 | Acessar o banco pela VM | `psql -h 127.0.0.1 -p 5433 -U laravel breno_projetos_laravel` (senha: `secret`) |
 
+## Produção com Docker (servidor próprio)
+
+Apache + PHP 8.5 com o código dentro da imagem, PostgreSQL 18 sem porta exposta e acesso por `http://IP-DO-SERVIDOR:8000`.
+Arquivos: `docker-compose.producao.yml`, `docker/producao/` e `.env.producao.example`.
+
+```bash
+git clone https://github.com/jbrenodm/breno-projetos-laravel.git
+cd breno-projetos-laravel
+scripts/instalar-producao.sh          # cria o .env, sobe tudo e cria o primeiro Admin
+```
+
+O `.env` do servidor tem `COMPOSE_FILE=docker-compose.producao.yml`, então os comandos são os de sempre:
+
+| Ação | Comando |
+|---|---|
+| Atualizar para a última versão do GitHub | `scripts/atualizar-producao.sh` (faz backup antes) |
+| Backup do banco | `scripts/backup-producao.sh` (pasta `backups/`, guarda os 30 últimos) |
+| Ver logs | `docker compose logs -f app` |
+| Parar / subir | `docker compose down` / `docker compose up -d` (os dados ficam no volume `pgdata`) |
+| Comando artisan | `docker compose exec -u www-data app php artisan ...` |
+
+Os containers sobem sozinhos quando o servidor reinicia. Alterou o `.env`? Rode `docker compose up -d` para aplicar.
+
 ## Comandos do dia a dia
 
 | Ação | Comando |
