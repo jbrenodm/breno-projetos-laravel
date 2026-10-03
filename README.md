@@ -18,6 +18,25 @@ bash scripts/setup-ubuntu.sh          # instala PHP, Composer, PostgreSQL, cria 
 php artisan serve --host=0.0.0.0      # acesse http://IP-DA-VM:8000 pelo Windows
 ```
 
+## Ambiente com Docker
+
+Sobe o Laravel (PHP 8.5) e um PostgreSQL 18 próprio, sem depender do PHP/PostgreSQL da VM.
+O projeto é montado no container, então as alterações no código valem na hora.
+
+```bash
+cp -n .env.example .env               # se ainda não existir (o banco é configurado pelo docker-compose.yml)
+docker compose up -d --build          # acesse http://IP-DA-VM:8000
+docker compose exec app scripts/iniciar-do-zero.sh   # 1ª vez: cria papéis e o primeiro Admin
+```
+
+| Ação | Comando |
+|---|---|
+| Rodar os testes | `docker compose exec app php artisan test` |
+| Qualquer comando artisan | `docker compose exec app php artisan ...` |
+| Ver logs | `docker compose logs -f app` |
+| Parar | `docker compose down` (os dados ficam no volume `pgdata`) |
+| Acessar o banco pela VM | `psql -h 127.0.0.1 -p 5433 -U laravel breno_projetos_laravel` (senha: `secret`) |
+
 ## Comandos do dia a dia
 
 | Ação | Comando |

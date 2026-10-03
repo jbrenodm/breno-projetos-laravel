@@ -1,24 +1,44 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
     volumes:
       - ./:/var/www/app
+    # Variáveis de ambiente têm prioridade sobre o .env: o mesmo .env serve
+    # para rodar fora do Docker (PostgreSQL da VM) e dentro dele (serviço db).
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: breno_projetos_laravel
+      DB_USERNAME: laravel
+      DB_PASSWORD: secret
     ports:
-      - "8000:8000"   # Laravel
-      - "5173:5173"   # Vite
+      - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
-    image: postgres:16
+    image: postgres:18
     environment:
       POSTGRES_DB: breno_projetos_laravel
       POSTGRES_USER: laravel
       POSTGRES_PASSWORD: secret
+      TZ: America/Sao_Paulo
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
+    # 5433 só no localhost: a 5432 já é usada pelo PostgreSQL instalado na VM.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U laravel -d breno_projetos_laravel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   pgdata:
