@@ -28,7 +28,9 @@
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="pgsql"/>
-        <env name="DB_DATABASE" value="breno_projetos_testing"/>
+        <env name="DB_DATABASE" value="breno_projetos_testing" force="true"/>
+        <!-- No Docker o DB_DATABASE vem do docker-compose.yml em $_SERVER, que o Laravel lê antes de $_ENV. -->
+        <server name="DB_DATABASE" value="breno_projetos_testing" force="true"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
