@@ -45,7 +45,7 @@ Arquivos: `docker-compose.producao.yml`, `docker/producao/` e `.env.producao.exa
 ```bash
 git clone https://github.com/jbrenodm/breno-projetos-laravel.git
 cd breno-projetos-laravel
-scripts/instalar-producao.sh          # cria o .env, sobe tudo e cria o primeiro Admin
+scripts/instalar-producao.sh          # cria o .env, escolhe uma porta livre (8000 ou a próxima), sobe tudo e cria o primeiro Admin
 ```
 
 O `.env` do servidor tem `COMPOSE_FILE=docker-compose.producao.yml`, então os comandos são os de sempre:
