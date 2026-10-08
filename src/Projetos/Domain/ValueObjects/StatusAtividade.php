@@ -17,15 +17,10 @@ enum StatusAtividade: string
         return in_array($destino, $this->destinosPermitidos(), true);
     }
 
-    /** @return list<self> */
+    /** RN-16: qualquer outro status (inclusive reabrir a concluída e voltar para não iniciada). @return list<self> */
     public function destinosPermitidos(): array
     {
-        return match ($this) {
-            self::NAO_INICIADA => [self::EM_ANDAMENTO, self::PARADA, self::CONCLUIDA],
-            self::EM_ANDAMENTO => [self::PARADA, self::CONCLUIDA],
-            self::PARADA => [self::EM_ANDAMENTO, self::CONCLUIDA],
-            self::CONCLUIDA => [],
-        };
+        return array_values(array_filter(self::cases(), fn (self $s) => $s !== $this));
     }
 
     public function estaAberta(): bool

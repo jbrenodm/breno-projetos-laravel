@@ -58,6 +58,11 @@ final readonly class PeriodoAtividade
         return new self($this->dataEntrada, $this->dataLimite, $this->dataInicio, $dataTermino);
     }
 
+    public function semInicio(): self
+    {
+        return new self($this->dataEntrada, $this->dataLimite, null, $this->dataTermino);
+    }
+
     public function semTermino(): self
     {
         return new self($this->dataEntrada, $this->dataLimite, $this->dataInicio, null);

@@ -93,6 +93,10 @@ it('RN-08..10: status do projeto acompanha as atividades', function () {
     $p->alterarStatusAtividade($a2, StatusAtividade::CONCLUIDA, null, dia('2026-10-05'));
     expect($p->getStatus())->toBe(StatusProjeto::CONCLUIDO);
 
+    $p->alterarStatusAtividade($a2, StatusAtividade::EM_ANDAMENTO, null, dia('2026-10-06')); // RN-16: reabrir reabre o projeto
+    expect($p->getStatus())->toBe(StatusProjeto::EM_ANDAMENTO);
+
+    $p->alterarStatusAtividade($a2, StatusAtividade::CONCLUIDA, null, dia('2026-10-07'));
     adicionar($p); // nova atividade reabre o projeto
     expect($p->getStatus())->toBe(StatusProjeto::EM_ANDAMENTO);
 });

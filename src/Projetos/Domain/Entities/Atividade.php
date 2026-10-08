@@ -84,6 +84,15 @@ final class Atividade
 
         $periodo = $this->periodo;
 
+        // RN-18: só a concluída tem término; a não iniciada não tem início (vale ao reabrir ou voltar).
+        if ($novoStatus !== StatusAtividade::CONCLUIDA) {
+            $periodo = $periodo->semTermino();
+        }
+
+        if ($novoStatus === StatusAtividade::NAO_INICIADA) {
+            $periodo = $periodo->semInicio();
+        }
+
         if ($novoStatus === StatusAtividade::EM_ANDAMENTO && $periodo->dataInicio === null) {
             $periodo = $periodo->comInicio($data ?? $hoje);
         }

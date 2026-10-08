@@ -15,7 +15,11 @@ use Src\Parceiros\Application\DTOs\CadastrarClienteInput;
 use Src\Parceiros\Application\DTOs\CadastrarFornecedorInput;
 use Src\Parceiros\Application\UseCases\CadastrarCliente;
 use Src\Parceiros\Application\UseCases\CadastrarFornecedor;
+use Src\Projetos\Application\DTOs\RegistrarAtividadeInput;
+use Src\Projetos\Application\DTOs\RegistrarProjetoInput;
 use Src\Projetos\Application\Queries\ProjetoQuery;
+use Src\Projetos\Application\UseCases\RegistrarNovaAtividade;
+use Src\Projetos\Application\UseCases\RegistrarNovoProjeto;
 use Src\Responsaveis\Domain\Funcao;
 use Src\Shared\Application\Ports\Relogio;
 
@@ -418,4 +422,26 @@ it('edita fornecedor e soluções, inativa e reativa pela tela (RN-30..32)', fun
         ->set('solucaoNome', 'edr avançado')
         ->call('salvarSolucao')
         ->assertSee("Este fornecedor já possui a solução 'edr avançado'.");
+});
+
+it('RN-16: reabre atividade concluída e volta para não iniciada pela tela, avisando sobre as datas', function () {
+    $projetoId = app(RegistrarNovoProjeto::class)->execute(
+        new RegistrarProjetoInput($this->clienteId, [['fornecedor_id' => $this->fornecedorId]])
+    );
+    $atividadeId = app(RegistrarNovaAtividade::class)->execute(new RegistrarAtividadeInput(
+        $projetoId, 'Entrega', tipoAtividadeId('Implantação'), 'Concluída', dia('2026-09-01'), dia('2026-09-30'), dia('2026-09-02'), dia('2026-09-20'),
+        $this->am->id, $this->pv->id,
+    ));
+
+    Livewire::test(DetalheProjeto::class, ['projetoId' => $projetoId])
+        ->assertSee(['Reabrir', 'Voltar para Não Iniciada'])
+        ->call('prepararMudancaDeStatus', $atividadeId, 'Em Andamento')
+        ->assertSee('A data de término será apagada.')
+        ->call('confirmarMudancaDeStatus')->assertHasNoErrors()
+        ->call('prepararMudancaDeStatus', $atividadeId, 'Não Iniciada')
+        ->assertSee('As datas de início e término serão apagadas.')
+        ->call('confirmarMudancaDeStatus')->assertHasNoErrors();
+
+    $this->assertDatabaseHas('atividades', ['id' => $atividadeId, 'status' => 'Não Iniciada', 'data_inicio' => null, 'data_termino' => null]);
+    $this->assertDatabaseHas('projetos', ['id' => $projetoId, 'status' => 'Em Andamento']);
 });

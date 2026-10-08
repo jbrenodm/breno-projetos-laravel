@@ -66,14 +66,39 @@ it('RN-16/18: iniciar preenche data de início; concluir preenche término', fun
         ->and($a->getPeriodo()->dataTermino->format('Y-m-d'))->toBe('2026-09-15');
 });
 
-it('RN-16: transições proibidas', function (StatusAtividade $de, StatusAtividade $para) {
-    $a = atividade($de);
+it('RN-16: não se muda para o próprio status', function (StatusAtividade $status) {
+    atividade($status)->alterarStatus($status, null, dia('2026-10-02'));
+})->with(StatusAtividade::cases())->throws(TransicaoDeStatusInvalidaException::class);
+
+it('RN-16: qualquer status pode ir para qualquer outro', function () {
+    foreach (StatusAtividade::cases() as $de) {
+        expect($de->destinosPermitidos())->toHaveCount(3)->not->toContain($de);
+    }
+});
+
+it('RN-16/18: reabrir a concluída apaga o término e mantém o início', function (StatusAtividade $para) {
+    $a = atividade(StatusAtividade::CONCLUIDA, new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30'), dia('2026-09-02'), dia('2026-09-20')));
+
     $a->alterarStatus($para, null, dia('2026-10-02'));
-})->with([
-    'concluída é final' => [StatusAtividade::CONCLUIDA, StatusAtividade::EM_ANDAMENTO],
-    'não volta a não iniciada' => [StatusAtividade::EM_ANDAMENTO, StatusAtividade::NAO_INICIADA],
-    'mesmo status' => [StatusAtividade::PARADA, StatusAtividade::PARADA],
-])->throws(TransicaoDeStatusInvalidaException::class);
+
+    expect($a->getStatus())->toBe($para)
+        ->and($a->getPeriodo()->dataInicio->format('Y-m-d'))->toBe('2026-09-02')
+        ->and($a->getPeriodo()->dataTermino)->toBeNull();
+})->with([StatusAtividade::EM_ANDAMENTO, StatusAtividade::PARADA]);
+
+it('RN-16/18: voltar para não iniciada apaga início e término', function (StatusAtividade $de) {
+    $a = atividade($de, new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30'), dia('2026-09-02'),
+        $de === StatusAtividade::CONCLUIDA ? dia('2026-09-20') : null));
+
+    $a->alterarStatus(StatusAtividade::NAO_INICIADA, null, dia('2026-10-02'));
+
+    expect($a->getStatus())->toBe(StatusAtividade::NAO_INICIADA)
+        ->and($a->getPeriodo()->dataInicio)->toBeNull()
+        ->and($a->getPeriodo()->dataTermino)->toBeNull();
+
+    $a->alterarStatus(StatusAtividade::EM_ANDAMENTO, null, dia('2026-10-05')); // recomeça com novo início
+    expect($a->getPeriodo()->dataInicio->format('Y-m-d'))->toBe('2026-10-05');
+})->with([StatusAtividade::EM_ANDAMENTO, StatusAtividade::PARADA, StatusAtividade::CONCLUIDA]);
 
 it('RN-20: só o autor edita a observação', function () {
     $autor = uuid();

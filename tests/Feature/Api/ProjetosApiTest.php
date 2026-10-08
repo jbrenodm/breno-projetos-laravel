@@ -115,7 +115,12 @@ it('ciclo completo: atividades, herança de AM/PV e status do projeto', function
         ->and($atividade->data_termino)->toStartWith('2026-10-02');
     $this->assertDatabaseHas('projetos', ['id' => $id, 'status' => 'Concluído']);
 
-    // transição inválida (RN-16)
+    // RN-16: reabrir a concluída apaga o término e reabre o projeto
+    $this->patchJson("/api/v1/projetos/{$id}/atividades/{$a1}/status", ['status' => 'Em Andamento'])->assertOk();
+    expect(DB::table('atividades')->where('id', $a1)->value('data_termino'))->toBeNull();
+    $this->assertDatabaseHas('projetos', ['id' => $id, 'status' => 'Em Andamento']);
+
+    // RN-16: não se muda para o próprio status
     $this->patchJson("/api/v1/projetos/{$id}/atividades/{$a1}/status", ['status' => 'Em Andamento'])->assertUnprocessable();
 });
 

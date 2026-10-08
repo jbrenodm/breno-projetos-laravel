@@ -190,7 +190,10 @@
                                 <div class="btn-group btn-group-sm mt-2 d-flex">
                                     @foreach ($a['proximos_status'] as $proximo)
                                         <button class="btn btn-outline-secondary" wire:click="prepararMudancaDeStatus('{{ $a['id'] }}', '{{ $proximo }}')">
-                                            {{ match($proximo) { 'Em Andamento' => $a['status'] === 'Parada' ? 'Retomar' : 'Iniciar', 'Parada' => 'Parar', 'Concluída' => 'Concluir', default => $proximo } }}
+                                            {{ match($proximo) {
+                                                'Em Andamento' => match ($a['status']) { 'Parada' => 'Retomar', 'Concluída' => 'Reabrir', default => 'Iniciar' },
+                                                'Parada' => 'Parar', 'Concluída' => 'Concluir', 'Não Iniciada' => 'Voltar para Não Iniciada', default => $proximo,
+                                            } }}
                                         </button>
                                     @endforeach
                                 </div>
@@ -201,6 +204,12 @@
                     @if ($atividadeEmEdicao === $a['id'])
                         <form class="row g-2 align-items-end mt-2 p-2 bg-body-tertiary rounded" wire:submit="confirmarMudancaDeStatus">
                             <div class="col-auto">Mudar para <strong>{{ $novoStatus }}</strong></div>
+                            {{-- RN-18: o que muda nas datas ao reabrir ou voltar (RN-16) --}}
+                            @if ($novoStatus === 'Não Iniciada' && ($a['data_inicio'] || $a['data_termino']))
+                                <div class="col-auto small text-warning-emphasis"><i class="bi bi-exclamation-triangle"></i> As datas de início e término serão apagadas.</div>
+                            @elseif ($novoStatus !== 'Concluída' && $a['data_termino'])
+                                <div class="col-auto small text-warning-emphasis"><i class="bi bi-exclamation-triangle"></i> A data de término será apagada.</div>
+                            @endif
                             @if (in_array($novoStatus, ['Em Andamento', 'Concluída'], true) && ($novoStatus === 'Concluída' || ! $a['data_inicio']))
                                 <div class="col-auto">
                                     <label class="form-label small mb-0">{{ $novoStatus === 'Concluída' ? 'Data de término' : 'Data de início' }}</label>

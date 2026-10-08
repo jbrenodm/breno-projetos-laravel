@@ -72,14 +72,16 @@ Automação (decidida na fase de desenvolvimento do backend):
   Se não houver atividade anterior, o usuário **deve** informar AM e PV. O domínio aplica a mesma regra
   se AM/PV chegarem vazios (proteção contra requisição incompleta).
 - **RN-15** Status da atividade: `Não Iniciada`, `Em Andamento`, `Parada`, `Concluída`.
-- **RN-16** Transições permitidas:
+- **RN-16** Transições permitidas: **qualquer status pode ir para qualquer outro** (inclusive reabrir uma atividade `Concluída`
+  e voltar para `Não Iniciada`); só não se "muda" para o próprio status. *(Alterado em 08/10/2026 — antes `Concluída` era final
+  e não se voltava para `Não Iniciada`.)* As datas acompanham o novo status (RN-18) e o status do projeto é recalculado (RN-08..10).
 
   | De \ Para | Não Iniciada | Em Andamento | Parada | Concluída |
   |---|---|---|---|---|
   | Não Iniciada | — | ✅ | ✅ | ✅ |
-  | Em Andamento | ❌ | — | ✅ | ✅ |
-  | Parada | ❌ | ✅ | — | ✅ |
-  | Concluída | ❌ | ❌ | ❌ | — (final) |
+  | Em Andamento | ✅ | — | ✅ | ✅ |
+  | Parada | ✅ | ✅ | — | ✅ |
+  | Concluída | ✅ | ✅ | ✅ | — |
 
 - **RN-17** É possível **registrar uma atividade já concluída** (ou já em andamento), para fins de histórico.
 - **RN-18 Datas da atividade:**
@@ -87,6 +89,8 @@ Automação (decidida na fase de desenvolvimento do backend):
   - `data_limite` — obrigatória; não pode ser anterior à `data_entrada`. (Nome em português: **não usar "deadline"**.)
   - `data_inicio` — opcional; preenchida automaticamente ao passar para `Em Andamento` se estiver vazia; pode ser informada manualmente (histórico). Não pode ser anterior à `data_entrada`.
   - `data_termino` — preenchida **somente** quando `Concluída` (informada ou, se vazia, a data atual). Não pode ser anterior à `data_entrada` nem à `data_inicio`.
+  - Ao **sair** de `Concluída`, a `data_termino` é apagada. Ao **voltar** para `Não Iniciada`, `data_inicio` e `data_termino` são apagadas.
+    Reabrir para `Em Andamento`/`Parada` mantém a `data_inicio` que já existia.
 - **RN-19** `tipo` da atividade (obrigatório): um dos **Tipos de Atividade ativos** cadastrados (RN-43).
   Tipos iniciais: `Mapeamento`, `Homologação`, `Implantação`, `Comercial`.
 - **RN-20** Observação da atividade: texto opcional, sanitizado, com **autor**. Só o autor pode editá-la
