@@ -9,7 +9,7 @@ use Src\Identidade\Domain\Papel;
 use Src\Identidade\Domain\ValueObjects\Email;
 use Src\Shared\Domain\Uuid;
 
-/** RN-25, RN-33..RN-36. A senha chega aqui já como hash (o hash é feito por uma porta na Aplicação). */
+/** RN-25, RN-33..RN-36: comum (sem papel) ou Admin Geral do Sistema; AM/PV são Responsáveis (RN-42). A senha chega aqui já como hash (o hash é feito por uma porta na Aplicação). */
 final class Usuario
 {
     private string $nome;
@@ -115,11 +115,10 @@ final class Usuario
             if (! $papel instanceof Papel) {
                 throw new RegraDeIdentidadeException('Papel inválido.');
             }
+            if ($papel !== Papel::ADMIN_GERAL) {
+                throw new RegraDeIdentidadeException('Usuário só pode ter o papel de Admin Geral do Sistema. AM e PV são cadastrados em Responsáveis.');
+            }
             $unicos[$papel->value] = $papel;
-        }
-
-        if ($unicos === []) {
-            throw new RegraDeIdentidadeException('O usuário deve ter pelo menos um papel.');
         }
 
         return array_values($unicos);

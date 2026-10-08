@@ -5,20 +5,20 @@ declare(strict_types=1);
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
-use Src\Identidade\Domain\Papel;
 use Src\Parceiros\Application\DTOs\CadastrarClienteInput;
 use Src\Parceiros\Application\DTOs\CadastrarFornecedorInput;
 use Src\Parceiros\Application\Queries\ParceirosQuery;
 use Src\Parceiros\Application\UseCases\CadastrarCliente;
 use Src\Parceiros\Application\UseCases\CadastrarFornecedor;
+use Src\Responsaveis\Domain\Funcao;
 use Src\Shared\Application\Ports\Relogio;
 
 beforeEach(function () {
     $this->clienteId = app(CadastrarCliente::class)->execute(new CadastrarClienteInput('Cliente S.A.'));
     $this->fornecedorId = app(CadastrarFornecedor::class)->execute(new CadastrarFornecedorInput('Fornecedor Ltda', 'Forn', null, ['Solução X']));
     $this->solucaoId = app(ParceirosQuery::class)->listarFornecedores()[0]['solucoes'][0]['id'];
-    $this->am = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create();
-    $this->pv = User::factory()->comPapel(Papel::PRE_VENDAS)->create();
+    $this->am = responsavel('AM', Funcao::ACCOUNT_MANAGER);
+    $this->pv = responsavel('PV', Funcao::PRE_VENDAS);
 
     app()->instance(Relogio::class, new class implements Relogio
     {
@@ -165,7 +165,7 @@ it('edita atividade e mantém o status (RN-28)', function () {
     $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this, ['status' => 'Concluída']))->assertOk();
 
     $this->assertDatabaseHas('atividades', [
-        'id' => $a, 'descricao' => 'Kickoff remarcado', 'tipo' => 'Mapeamento', 'status' => 'Não Iniciada',
+        'id' => $a, 'descricao' => 'Kickoff remarcado', 'tipo_id' => tipoAtividadeId('Mapeamento'), 'status' => 'Não Iniciada',
         'observacao' => 'Cliente pediu nova data', 'sequencia' => 1,
     ]);
     expect(DB::table('atividades')->where('id', $a)->value('data_limite'))->toStartWith('2026-10-20');
@@ -238,7 +238,7 @@ it('RN-20: com login, só o autor altera a observação da atividade', function 
     $a = $this->postJson("/api/v1/projetos/{$id}/atividades", atividadePayload($this, ['observacao' => 'Do admin']))->json('id');
     $this->assertDatabaseHas('atividades', ['id' => $a, 'observacao_autor_id' => $this->usuarioLogado->id]);
 
-    Sanctum::actingAs($this->am);
+    Sanctum::actingAs(User::factory()->create()); // outro usuário (comum)
     $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this, ['observacao' => 'Intruso']))
         ->assertUnprocessable()->assertJsonPath('error', 'Somente o autor pode alterar a observação desta atividade.');
     $this->putJson("/api/v1/projetos/{$id}/atividades/{$a}", edicaoPayload($this, ['observacao' => 'Do admin']))->assertOk(); // manter é permitido

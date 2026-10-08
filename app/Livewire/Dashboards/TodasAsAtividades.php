@@ -10,14 +10,14 @@ use Illuminate\View\View;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
-use Src\Identidade\Application\Queries\UsuariosQuery;
-use Src\Identidade\Domain\Papel;
 use Src\Parceiros\Application\Queries\ParceirosQuery;
 use Src\Projetos\Application\Queries\FiltroAtividades;
 use Src\Projetos\Application\Queries\OrdenacaoAtividades;
 use Src\Projetos\Application\Queries\ProjetoQuery;
+use Src\Projetos\Application\Queries\TiposAtividadeQuery;
 use Src\Projetos\Domain\ValueObjects\StatusAtividade;
-use Src\Projetos\Domain\ValueObjects\TipoAtividade;
+use Src\Responsaveis\Application\Queries\ResponsaveisQuery;
+use Src\Responsaveis\Domain\Funcao;
 
 /**
  * Dashboards › Todas as atividades (somente leitura).
@@ -75,19 +75,19 @@ final class TodasAsAtividades extends Component
         $this->sentido = $this->sentido === 'desc' ? 'asc' : 'desc';
     }
 
-    public function render(ProjetoQuery $projetos, ParceirosQuery $parceiros, UsuariosQuery $usuarios): View
+    public function render(ProjetoQuery $projetos, ParceirosQuery $parceiros, ResponsaveisQuery $responsaveis, TiposAtividadeQuery $tiposAtividade): View
     {
         $filtro = $this->filtro();
 
         return view('livewire.dashboards.todas-as-atividades', [
             'atividades' => $projetos->listarAtividades($filtro),
             'statusPossiveis' => StatusAtividade::cases(),
-            'tipos' => TipoAtividade::cases(),
+            'tipos' => $tiposAtividade->listarTodos(), // inclui inativos: há atividades antigas com eles (RN-43)
             'ordenacoes' => OrdenacaoAtividades::cases(),
             'clientes' => $parceiros->listarClientes(),
             'fornecedores' => $parceiros->listarFornecedores(),
-            'accountManagers' => $usuarios->listarAtivosPorPapel(Papel::ACCOUNT_MANAGER),
-            'preVendas' => $usuarios->listarAtivosPorPapel(Papel::PRE_VENDAS),
+            'accountManagers' => $responsaveis->listarAtivosPorFuncao(Funcao::ACCOUNT_MANAGER),
+            'preVendas' => $responsaveis->listarAtivosPorFuncao(Funcao::PRE_VENDAS),
             'filtrosAtivos' => count(array_filter(self::FILTROS, fn (string $campo) => (bool) $this->{$campo})),
         ]);
     }
@@ -98,7 +98,7 @@ final class TodasAsAtividades extends Component
             status: StatusAtividade::tryFrom($this->status)?->value,
             busca: mb_substr(trim($this->busca), 0, 100) ?: null,
             clienteId: self::uuid($this->clienteId),
-            tipo: TipoAtividade::tryFrom($this->tipo)?->value,
+            tipoId: self::uuid($this->tipo),
             accountManagerId: self::uuid($this->accountManagerId),
             preVendasId: self::uuid($this->preVendasId),
             fornecedorId: self::uuid($this->fornecedorId),

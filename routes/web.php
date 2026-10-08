@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Auth\LogoutController;
 use App\Livewire\Admin\Papeis;
+use App\Livewire\Admin\Responsaveis;
+use App\Livewire\Admin\TiposDeAtividade;
 use App\Livewire\Admin\Usuarios;
 use App\Livewire\Auth\EsqueciSenha;
 use App\Livewire\Auth\Login;
@@ -39,6 +41,8 @@ Route::middleware(['auth', 'ativo'])->group(function (): void {
         Route::livewire('/dashboards/atividades', TodasAsAtividades::class)->name('dashboards.atividades');
         Route::livewire('/minha-conta', MinhaConta::class)->name('conta'); // RN-40
         Route::livewire('/usuarios', Usuarios::class)->name('usuarios.index')->middleware('can:admin-geral'); // RN-35
+        Route::livewire('/responsaveis', Responsaveis::class)->name('responsaveis.index')->middleware('can:admin-geral'); // RN-42
+        Route::livewire('/tipos-de-atividade', TiposDeAtividade::class)->name('tipos-atividade.index')->middleware('can:admin-geral'); // RN-43
         Route::livewire('/papeis', Papeis::class)->name('papeis.index')->middleware('can:admin-geral'); // RN-41
     });
 });

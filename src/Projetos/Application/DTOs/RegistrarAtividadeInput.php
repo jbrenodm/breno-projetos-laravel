@@ -11,7 +11,7 @@ final readonly class RegistrarAtividadeInput
     public function __construct(
         public string $projetoId,
         public string $descricao,
-        public string $tipo,
+        public string $tipoId,
         public string $status,
         public DateTimeImmutable $dataEntrada,
         public DateTimeImmutable $dataLimite,

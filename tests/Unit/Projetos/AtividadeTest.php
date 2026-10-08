@@ -10,12 +10,11 @@ use Src\Projetos\Domain\Exceptions\TransicaoDeStatusInvalidaException;
 use Src\Projetos\Domain\ValueObjects\Observacao;
 use Src\Projetos\Domain\ValueObjects\PeriodoAtividade;
 use Src\Projetos\Domain\ValueObjects\StatusAtividade;
-use Src\Projetos\Domain\ValueObjects\TipoAtividade;
 
 function atividade(StatusAtividade $status = StatusAtividade::NAO_INICIADA, ?PeriodoAtividade $periodo = null, ?Observacao $obs = null): Atividade
 {
     return Atividade::registrar(
-        uuid(), '  <b>Levantar ambiente</b> ', TipoAtividade::MAPEAMENTO, $status,
+        uuid(), '  <b>Levantar ambiente</b> ', TIPO_MAPEAMENTO, $status,
         $periodo ?? new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30')),
         uuid(), uuid(), $obs, dia('2026-10-02'),
     );
@@ -87,14 +86,14 @@ it('RN-20: só o autor edita a observação', function () {
 })->throws(ObservacaoNaoPermitidaException::class);
 
 it('valida AM/PV como UUID', function () {
-    Atividade::registrar(uuid(), 'x', TipoAtividade::COMERCIAL, StatusAtividade::NAO_INICIADA,
+    Atividade::registrar(uuid(), 'x', TIPO_COMERCIAL, StatusAtividade::NAO_INICIADA,
         new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30')), 'am-invalido', uuid(), null, dia('2026-10-02'));
 })->throws(RegraDeProjetoException::class);
 
 function editar(Atividade $a, ?PeriodoAtividade $periodo = null, ?string $observacao = null, ?string $usuarioId = null): void
 {
     $a->editar(
-        ' <i>Descrição corrigida</i> ', TipoAtividade::IMPLANTACAO,
+        ' <i>Descrição corrigida</i> ', TIPO_IMPLANTACAO,
         $periodo ?? new PeriodoAtividade(dia('2026-08-20'), dia('2026-10-20')),
         uuid(), uuid(), $observacao, $usuarioId, dia('2026-10-02'),
     );
@@ -105,7 +104,7 @@ it('RN-28: edita descrição, tipo, datas, responsáveis e observação sem muda
     editar($a, observacao: 'Nova observação');
 
     expect($a->getDescricao())->toBe('Descrição corrigida')
-        ->and($a->getTipo())->toBe(TipoAtividade::IMPLANTACAO)
+        ->and($a->getTipoId())->toBe(TIPO_IMPLANTACAO)
         ->and($a->getStatus())->toBe(StatusAtividade::EM_ANDAMENTO)
         ->and($a->getPeriodo()->dataEntrada->format('Y-m-d'))->toBe('2026-08-20')
         ->and($a->getPeriodo()->dataInicio->format('Y-m-d'))->toBe('2026-08-20') // em andamento sem início → entrada
@@ -128,13 +127,13 @@ it('RN-28: descrição vazia é rejeitada e nada é alterado', function () {
     $a = atividade();
 
     try {
-        $a->editar('<b></b>', TipoAtividade::COMERCIAL, new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30')),
+        $a->editar('<b></b>', TIPO_COMERCIAL, new PeriodoAtividade(dia('2026-09-01'), dia('2026-09-30')),
             uuid(), uuid(), null, null, dia('2026-10-02'));
     } catch (RegraDeProjetoException) {
     }
 
     expect($a->getDescricao())->toBe('Levantar ambiente')
-        ->and($a->getTipo())->toBe(TipoAtividade::MAPEAMENTO);
+        ->and($a->getTipoId())->toBe(TIPO_MAPEAMENTO);
 });
 
 it('RN-28: observação vazia remove a existente', function () {

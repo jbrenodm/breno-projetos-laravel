@@ -11,7 +11,6 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
-use Src\Identidade\Application\Queries\UsuariosQuery;
 use Src\Identidade\Domain\Papel;
 use Src\Parceiros\Application\Queries\ParceirosQuery;
 use Src\Projetos\Application\DTOs\AlterarClienteDoProjetoInput;
@@ -20,13 +19,15 @@ use Src\Projetos\Application\DTOs\CancelarProjetoInput;
 use Src\Projetos\Application\DTOs\EditarAtividadeInput;
 use Src\Projetos\Application\DTOs\RegistrarAtividadeInput;
 use Src\Projetos\Application\Queries\ProjetoQuery;
+use Src\Projetos\Application\Queries\TiposAtividadeQuery;
 use Src\Projetos\Application\UseCases\AlterarClienteDoProjeto;
 use Src\Projetos\Application\UseCases\AlterarStatusAtividade;
 use Src\Projetos\Application\UseCases\CancelarProjeto;
 use Src\Projetos\Application\UseCases\EditarAtividade;
 use Src\Projetos\Application\UseCases\RegistrarNovaAtividade;
 use Src\Projetos\Domain\ValueObjects\StatusAtividade;
-use Src\Projetos\Domain\ValueObjects\TipoAtividade;
+use Src\Responsaveis\Application\Queries\ResponsaveisQuery;
+use Src\Responsaveis\Domain\Funcao;
 
 final class DetalheProjeto extends Component
 {
@@ -44,7 +45,7 @@ final class DetalheProjeto extends Component
     // Formulário de nova atividade / edição (REQUISITOS.md §4.3)
     public string $descricao = '';
 
-    public string $tipo = '';
+    public string $tipoId = '';
 
     public string $status = '';
 
@@ -81,7 +82,7 @@ final class DetalheProjeto extends Component
     }
 
     /** RN-14: pré-preenche AM/PV com os da última atividade. */
-    public function abrirFormulario(ProjetoQuery $projetos): void
+    public function abrirFormulario(ProjetoQuery $projetos, TiposAtividadeQuery $tipos): void
     {
         $sugeridos = $projetos->responsaveisSugeridos($this->projetoId);
 
@@ -90,7 +91,7 @@ final class DetalheProjeto extends Component
             'mostrarFormulario' => true,
             'atividadeEditandoId' => null,
             'descricao' => '', 'observacao' => '',
-            'tipo' => TipoAtividade::MAPEAMENTO->value,
+            'tipoId' => $tipos->listarAtivos()[0]['id'] ?? '', // RN-43: o primeiro tipo ativo (ordem alfabética)
             'status' => StatusAtividade::NAO_INICIADA->value,
             'dataEntrada' => now()->toDateString(),
             'dataLimite' => '', 'dataInicio' => '', 'dataTermino' => '',
@@ -116,7 +117,7 @@ final class DetalheProjeto extends Component
             'mostrarFormulario' => true,
             'atividadeEditandoId' => $atividade['id'],
             'descricao' => $atividade['descricao'],
-            'tipo' => $atividade['tipo'],
+            'tipoId' => $atividade['tipo_id'],
             'status' => $atividade['status'],
             'dataEntrada' => $atividade['data_entrada'],
             'dataLimite' => $atividade['data_limite'],
@@ -153,7 +154,7 @@ final class DetalheProjeto extends Component
         $ok = $this->executar(fn () => $useCase->execute(new RegistrarAtividadeInput(
             projetoId: $this->projetoId,
             descricao: $this->descricao,
-            tipo: $this->tipo,
+            tipoId: $this->tipoId,
             status: $this->status,
             dataEntrada: new DateTimeImmutable($this->dataEntrada),
             dataLimite: new DateTimeImmutable($this->dataLimite),
@@ -184,7 +185,7 @@ final class DetalheProjeto extends Component
             projetoId: $this->projetoId,
             atividadeId: $this->atividadeEditandoId,
             descricao: $this->descricao,
-            tipo: $this->tipo,
+            tipoId: $this->tipoId,
             dataEntrada: new DateTimeImmutable($this->dataEntrada),
             dataLimite: new DateTimeImmutable($this->dataLimite),
             accountManagerId: $this->accountManagerId,
@@ -271,19 +272,37 @@ final class DetalheProjeto extends Component
         }
     }
 
-    public function render(ProjetoQuery $projetos, UsuariosQuery $usuarios, ParceirosQuery $parceiros): View
+    public function render(ProjetoQuery $projetos, ResponsaveisQuery $responsaveis, ParceirosQuery $parceiros, TiposAtividadeQuery $tipos): View
     {
         $projeto = $projetos->detalhar($this->projetoId) ?? abort(404);
 
         return view('livewire.projetos.detalhe-projeto', [
             'projeto' => $projeto,
-            'tipos' => TipoAtividade::cases(),
+            'tipos' => $this->mostrarFormulario ? $this->opcoesDeTipo($tipos, $projeto) : [],
             'statusPossiveis' => StatusAtividade::cases(),
-            'accountManagers' => $this->mostrarFormulario ? $usuarios->listarAtivosPorPapel(Papel::ACCOUNT_MANAGER) : [],
-            'preVendas' => $this->mostrarFormulario ? $usuarios->listarAtivosPorPapel(Papel::PRE_VENDAS) : [],
+            'accountManagers' => $this->mostrarFormulario ? $responsaveis->listarAtivosPorFuncao(Funcao::ACCOUNT_MANAGER) : [],
+            'preVendas' => $this->mostrarFormulario ? $responsaveis->listarAtivosPorFuncao(Funcao::PRE_VENDAS) : [],
             'primeiraAtividade' => $projeto['atividades'] === [],
             'clientes' => $this->trocandoCliente ? $parceiros->listarClientes(somenteAtivos: true) : [],
         ])->title('Projeto · '.$projeto['cliente']);
+    }
+
+    /**
+     * RN-43: tipos ativos; na edição, o tipo atual da atividade entra mesmo se estiver inativo (pode ser mantido).
+     *
+     * @param  array{atividades: list<array<string, mixed>>}  $projeto
+     * @return list<array{id: string, nome: string}>
+     */
+    private function opcoesDeTipo(TiposAtividadeQuery $tipos, array $projeto): array
+    {
+        $opcoes = $tipos->listarAtivos();
+        $atual = collect($projeto['atividades'])->firstWhere('id', $this->atividadeEditandoId);
+
+        if ($atual !== null && ! in_array($atual['tipo_id'], array_column($opcoes, 'id'), true)) {
+            $opcoes[] = ['id' => $atual['tipo_id'], 'nome' => $atual['tipo'].' (inativo)'];
+        }
+
+        return $opcoes;
     }
 
     private function validarFormularioDeAtividade(): void
@@ -292,7 +311,7 @@ final class DetalheProjeto extends Component
 
         $this->validate([
             'descricao' => ['required', 'string', 'max:2000'],
-            'tipo' => ['required', Rule::enum(TipoAtividade::class)],
+            'tipoId' => ['required', 'uuid'], // ativo? verificado no caso de uso (RN-43)
             'status' => ['required', Rule::enum(StatusAtividade::class)],
             'dataEntrada' => ['required', 'date_format:Y-m-d'],
             'dataLimite' => ['required', 'date_format:Y-m-d', 'after_or_equal:dataEntrada'],

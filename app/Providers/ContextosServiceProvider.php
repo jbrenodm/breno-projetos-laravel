@@ -24,15 +24,27 @@ use Src\Parceiros\Infrastructure\Persistence\Repositories\ClienteEloquentReposit
 use Src\Parceiros\Infrastructure\Persistence\Repositories\FornecedorEloquentRepository;
 use Src\Parceiros\Infrastructure\Queries\EloquentParceirosQuery;
 use Src\Projetos\Application\Ports\NomesDosResponsaveis;
+use Src\Projetos\Application\Ports\PermissaoDeAdmin as PermissaoDeAdminEmProjetos;
 use Src\Projetos\Application\Ports\VerificadorDeParceiros;
-use Src\Projetos\Application\Ports\VerificadorDeUsuarios;
+use Src\Projetos\Application\Ports\VerificadorDeResponsaveis;
 use Src\Projetos\Application\Queries\ProjetoQuery;
+use Src\Projetos\Application\Queries\TiposAtividadeQuery;
 use Src\Projetos\Domain\Repositories\ProjetoRepositoryInterface;
+use Src\Projetos\Domain\Repositories\TipoAtividadeRepositoryInterface;
 use Src\Projetos\Infrastructure\Adapters\NomesDosResponsaveisViaIdentidade;
+use Src\Projetos\Infrastructure\Adapters\PermissaoDeAdminViaIdentidade as PermissaoDeAdminEmProjetosViaIdentidade;
 use Src\Projetos\Infrastructure\Adapters\VerificadorDeParceirosEloquent;
-use Src\Projetos\Infrastructure\Adapters\VerificadorDeUsuariosViaIdentidade;
+use Src\Projetos\Infrastructure\Adapters\VerificadorDeResponsaveisViaResponsaveis;
 use Src\Projetos\Infrastructure\Persistence\Repositories\ProjetoEloquentRepository;
+use Src\Projetos\Infrastructure\Persistence\Repositories\TipoAtividadeEloquentRepository;
 use Src\Projetos\Infrastructure\Queries\EloquentProjetoQuery;
+use Src\Projetos\Infrastructure\Queries\EloquentTiposAtividadeQuery;
+use Src\Responsaveis\Application\Ports\PermissaoDeAdmin;
+use Src\Responsaveis\Application\Queries\ResponsaveisQuery;
+use Src\Responsaveis\Domain\Repositories\ResponsavelRepositoryInterface;
+use Src\Responsaveis\Infrastructure\Adapters\PermissaoDeAdminViaIdentidade;
+use Src\Responsaveis\Infrastructure\Persistence\ResponsavelEloquentRepository;
+use Src\Responsaveis\Infrastructure\Queries\EloquentResponsaveisQuery;
 use Src\Shared\Application\Ports\GeradorDeId;
 use Src\Shared\Application\Ports\Relogio;
 use Src\Shared\Infrastructure\GeradorDeIdUuid;
@@ -61,11 +73,19 @@ final class ContextosServiceProvider extends ServiceProvider
         FornecedorRepositoryInterface::class => FornecedorEloquentRepository::class,
         ParceirosQuery::class => EloquentParceirosQuery::class,
 
+        // Responsáveis
+        ResponsavelRepositoryInterface::class => ResponsavelEloquentRepository::class,
+        ResponsaveisQuery::class => EloquentResponsaveisQuery::class,
+        PermissaoDeAdmin::class => PermissaoDeAdminViaIdentidade::class,
+
         // Projetos
         ProjetoRepositoryInterface::class => ProjetoEloquentRepository::class,
         ProjetoQuery::class => EloquentProjetoQuery::class,
         VerificadorDeParceiros::class => VerificadorDeParceirosEloquent::class,
-        VerificadorDeUsuarios::class => VerificadorDeUsuariosViaIdentidade::class,
+        VerificadorDeResponsaveis::class => VerificadorDeResponsaveisViaResponsaveis::class,
         NomesDosResponsaveis::class => NomesDosResponsaveisViaIdentidade::class,
+        TipoAtividadeRepositoryInterface::class => TipoAtividadeEloquentRepository::class,
+        TiposAtividadeQuery::class => EloquentTiposAtividadeQuery::class,
+        PermissaoDeAdminEmProjetos::class => PermissaoDeAdminEmProjetosViaIdentidade::class,
     ];
 }

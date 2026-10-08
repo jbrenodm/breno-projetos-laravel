@@ -64,17 +64,19 @@ final class EloquentProjetoQuery implements ProjetoQuery
         }
 
         $atividades = DB::table('atividades as a')
-            ->join('users as am', 'am.id', '=', 'a.account_manager_id')
-            ->join('users as pv', 'pv.id', '=', 'a.pre_vendas_id')
+            ->join('tipos_atividade as t', 't.id', '=', 'a.tipo_id')
+            ->join('responsaveis as am', 'am.id', '=', 'a.account_manager_id')
+            ->join('responsaveis as pv', 'pv.id', '=', 'a.pre_vendas_id')
             ->where('a.projeto_id', $projetoId)
             ->orderBy('a.sequencia')
-            ->select('a.*', 'am.name as account_manager', 'pv.name as pre_vendas')
+            ->select('a.*', 't.nome as tipo', 'am.nome as account_manager', 'pv.nome as pre_vendas')
             ->get()
             ->map(fn ($a) => [
                 'id' => $a->id,
                 'sequencia' => (int) $a->sequencia,
                 'descricao' => $a->descricao,
                 'tipo' => $a->tipo,
+                'tipo_id' => $a->tipo_id,
                 'status' => $a->status,
                 'data_entrada' => $a->data_entrada,
                 'data_limite' => $a->data_limite,
@@ -113,10 +115,11 @@ final class EloquentProjetoQuery implements ProjetoQuery
         $atividades = DB::table('atividades as a')
             ->join('projetos as p', 'p.id', '=', 'a.projeto_id')
             ->join('clientes as c', 'c.id', '=', 'p.cliente_id')
-            ->join('users as am', 'am.id', '=', 'a.account_manager_id')
-            ->join('users as pv', 'pv.id', '=', 'a.pre_vendas_id')
+            ->join('tipos_atividade as t', 't.id', '=', 'a.tipo_id')
+            ->join('responsaveis as am', 'am.id', '=', 'a.account_manager_id')
+            ->join('responsaveis as pv', 'pv.id', '=', 'a.pre_vendas_id')
             ->when($filtro->status, fn ($q, $v) => $q->where('a.status', $v))
-            ->when($filtro->tipo, fn ($q, $v) => $q->where('a.tipo', $v))
+            ->when($filtro->tipoId, fn ($q, $v) => $q->where('a.tipo_id', $v))
             ->when($filtro->clienteId, fn ($q, $v) => $q->where('p.cliente_id', $v))
             ->when($filtro->accountManagerId, fn ($q, $v) => $q->where('a.account_manager_id', $v))
             ->when($filtro->preVendasId, fn ($q, $v) => $q->where('a.pre_vendas_id', $v))
@@ -136,12 +139,12 @@ final class EloquentProjetoQuery implements ProjetoQuery
                 OrdenacaoAtividades::DATA_LIMITE => 'a.data_limite',
                 OrdenacaoAtividades::CLIENTE => self::NOME_CLIENTE,
                 OrdenacaoAtividades::STATUS => 'a.status',
-                OrdenacaoAtividades::TIPO => 'a.tipo',
+                OrdenacaoAtividades::TIPO => 't.nome',
             }.' '.$sentido)
             ->orderByRaw(self::NOME_CLIENTE)
             ->orderBy('a.sequencia')
-            ->selectRaw('a.*, p.status as projeto_status, p.codigo_oportunidade, '.self::NOME_CLIENTE.' as cliente')
-            ->addSelect('am.name as account_manager', 'pv.name as pre_vendas')
+            ->selectRaw('a.*, t.nome as tipo, p.status as projeto_status, p.codigo_oportunidade, '.self::NOME_CLIENTE.' as cliente')
+            ->addSelect('am.nome as account_manager', 'pv.nome as pre_vendas')
             ->get();
 
         $fornecedores = $this->fornecedoresPorProjeto($atividades->pluck('projeto_id')->unique()->values()->all());
@@ -189,10 +192,10 @@ final class EloquentProjetoQuery implements ProjetoQuery
             ->all();
 
         $porAm = $atrasadas()
-            ->join('users as u', 'u.id', '=', 'a.account_manager_id')
-            ->groupBy('u.id', 'u.name')
-            ->orderBy('u.name')
-            ->selectRaw('u.id, u.name as nome, COUNT(*) as total');
+            ->join('responsaveis as r', 'r.id', '=', 'a.account_manager_id')
+            ->groupBy('r.id', 'r.nome')
+            ->orderBy('r.nome')
+            ->selectRaw('r.id, r.nome, COUNT(*) as total');
 
         $porCliente = $atrasadas()
             ->join('clientes as c', 'c.id', '=', 'p.cliente_id')
@@ -209,15 +212,15 @@ final class EloquentProjetoQuery implements ProjetoQuery
 
         $proximos = $this->atividadesOperacionais()
             ->join('clientes as c', 'c.id', '=', 'p.cliente_id')
-            ->join('users as am', 'am.id', '=', 'a.account_manager_id')
-            ->join('users as pv', 'pv.id', '=', 'a.pre_vendas_id')
+            ->join('responsaveis as am', 'am.id', '=', 'a.account_manager_id')
+            ->join('responsaveis as pv', 'pv.id', '=', 'a.pre_vendas_id')
             ->where('a.status', '<>', $concluida)
             ->whereBetween('a.data_limite', [$dia, $daquiA7Dias])
             ->orderBy('a.data_limite')
             ->orderByRaw(self::NOME_CLIENTE)
             ->limit(10)
-            ->selectRaw('a.id, a.projeto_id, a.descricao, a.tipo, a.status, a.data_limite, '.self::NOME_CLIENTE.' as cliente')
-            ->addSelect('am.name as account_manager', 'pv.name as pre_vendas')
+            ->selectRaw('a.id, a.projeto_id, a.descricao, t.nome as tipo, a.status, a.data_limite, '.self::NOME_CLIENTE.' as cliente')
+            ->addSelect('am.nome as account_manager', 'pv.nome as pre_vendas')
             ->get()
             ->map(fn ($a) => [
                 'id' => $a->id,
@@ -310,17 +313,17 @@ final class EloquentProjetoQuery implements ProjetoQuery
             'atraso_medio_dias' => $media($resumo->atraso),
             'por_mes' => $serie,
             'execucao_por_tipo' => $mediaPor(
-                $concluidas()->whereNotNull('a.data_inicio')->groupBy('a.tipo')->addSelect('a.tipo as nome'),
+                $concluidas()->whereNotNull('a.data_inicio')->groupBy('t.nome')->addSelect('t.nome as nome'),
                 'a.data_termino - a.data_inicio',
             ),
             'atraso_por_tipo' => $mediaPor(
-                $concluidas()->whereColumn('a.data_termino', '>', 'a.data_limite')->groupBy('a.tipo')->addSelect('a.tipo as nome'),
+                $concluidas()->whereColumn('a.data_termino', '>', 'a.data_limite')->groupBy('t.nome')->addSelect('t.nome as nome'),
                 'a.data_termino - a.data_limite',
             ),
             'atraso_por_am' => $mediaPor(
                 $concluidas()->whereColumn('a.data_termino', '>', 'a.data_limite')
-                    ->join('users as u', 'u.id', '=', 'a.account_manager_id')
-                    ->groupBy('u.id', 'u.name')->addSelect('u.id', 'u.name as nome'),
+                    ->join('responsaveis as r', 'r.id', '=', 'a.account_manager_id')
+                    ->groupBy('r.id', 'r.nome')->addSelect('r.id', 'r.nome'),
                 'a.data_termino - a.data_limite',
             ),
         ];
@@ -352,6 +355,7 @@ final class EloquentProjetoQuery implements ProjetoQuery
     {
         return DB::table('atividades as a')
             ->join('projetos as p', 'p.id', '=', 'a.projeto_id')
+            ->join('tipos_atividade as t', 't.id', '=', 'a.tipo_id')
             ->where('p.status', '<>', StatusProjeto::CANCELADO->value);
     }
 

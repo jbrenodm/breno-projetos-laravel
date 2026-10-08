@@ -13,7 +13,7 @@ final readonly class FiltroAtividades
         public ?string $status = null,
         public ?string $busca = null,
         public ?string $clienteId = null,
-        public ?string $tipo = null,
+        public ?string $tipoId = null,
         public ?string $accountManagerId = null,
         public ?string $preVendasId = null,
         public ?string $fornecedorId = null,

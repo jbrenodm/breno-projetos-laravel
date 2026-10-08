@@ -16,7 +16,6 @@ use Src\Projetos\Domain\ValueObjects\PeriodoAtividade;
 use Src\Projetos\Domain\ValueObjects\ProjetoId;
 use Src\Projetos\Domain\ValueObjects\StatusAtividade;
 use Src\Projetos\Domain\ValueObjects\StatusProjeto;
-use Src\Projetos\Domain\ValueObjects\TipoAtividade;
 use Src\Projetos\Domain\ValueObjects\VinculoFornecedor;
 use Src\Shared\Domain\Uuid;
 
@@ -82,7 +81,7 @@ final class Projeto
     public function adicionarAtividade(
         string $atividadeId,
         string $descricao,
-        TipoAtividade $tipo,
+        string $tipoId,
         StatusAtividade $status,
         PeriodoAtividade $periodo,
         ?string $accountManagerId,
@@ -103,7 +102,7 @@ final class Projeto
         }
 
         $atividade = Atividade::registrar(
-            $atividadeId, $descricao, $tipo, $status, $periodo,
+            $atividadeId, $descricao, $tipoId, $status, $periodo,
             $accountManagerId, $preVendasId, $observacao, $hoje,
         );
 
@@ -129,7 +128,7 @@ final class Projeto
     public function editarAtividade(
         string $atividadeId,
         string $descricao,
-        TipoAtividade $tipo,
+        string $tipoId,
         PeriodoAtividade $periodo,
         string $accountManagerId,
         string $preVendasId,
@@ -139,7 +138,7 @@ final class Projeto
     ): void {
         $this->garantirQueNaoEstaCancelado();
         $this->buscarAtividade($atividadeId)->editar(
-            $descricao, $tipo, $periodo, $accountManagerId, $preVendasId, $observacao, $usuarioId, $hoje,
+            $descricao, $tipoId, $periodo, $accountManagerId, $preVendasId, $observacao, $usuarioId, $hoje,
         );
     }
 

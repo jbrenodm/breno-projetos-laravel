@@ -76,7 +76,8 @@ src/
 ├── Shared/      Portas comuns (GeradorDeId, Relogio) e exceção base de regra de negócio
 ├── Projetos/    Contexto core: Projeto (aggregate root) e Atividade
 ├── Parceiros/   Clientes, Fornecedores e Soluções
-└── Identidade/  Papéis de usuário (AM, PV, Admin)
+├── Responsaveis/ AM e PV (pessoas sem login, RN-42)
+└── Identidade/  Usuários (login), papel Admin e nomes dos papéis
 app/
 ├── Livewire/    Telas (chamam Casos de Uso e Queries — nunca o Eloquent direto)
 └── Http/        API v1 (Controllers finos + FormRequests)

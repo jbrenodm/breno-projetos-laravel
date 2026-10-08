@@ -73,9 +73,10 @@
 
                     <div class="col-md-3">
                         <label class="form-label">Tipo <span class="text-danger">*</span></label>
-                        <select class="form-select" wire:model="tipo">
-                            @foreach ($tipos as $t) <option value="{{ $t->value }}">{{ $t->value }}</option> @endforeach
+                        <select class="form-select @error('tipoId') is-invalid @enderror" wire:model="tipoId">
+                            @foreach ($tipos as $t) <option value="{{ $t['id'] }}">{{ $t['nome'] }}</option> @endforeach
                         </select>
+                        @error('tipoId') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Status <span class="text-danger">*</span></label>

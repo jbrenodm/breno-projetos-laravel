@@ -25,13 +25,14 @@
                         @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                     <div class="mb-3">
-                        <div class="form-label">Papéis <span class="text-danger">*</span></div>
+                        <div class="form-label">Papel</div>
                         @foreach ($todosPapeis as $p)
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" value="{{ $p->value }}" id="papel-{{ $p->value }}" wire:model="papeis">
                                 <label class="form-check-label" for="papel-{{ $p->value }}">{{ $papeis->nome($p) }}</label>
                             </div>
                         @endforeach
+                        <div class="form-text">Sem marcar: usuário comum. AM e PV não são usuários: cadastre-os em <a href="{{ route('responsaveis.index') }}" wire:navigate>Responsáveis</a>.</div>
                         @error('papeis') <div class="small text-danger">{{ $message }}</div> @enderror
                     </div>
                     @unless ($editando)
@@ -66,9 +67,11 @@
                                     </div>
                                     <div class="small text-muted">{{ $u['email'] }}</div>
                                     <div class="mt-1">
-                                        @foreach ($u['papeis'] as $papel)
+                                        @forelse ($u['papeis'] as $papel)
                                             <span class="badge rounded-pill text-bg-light border">{{ $papeis->nome(Papel::from($papel)) }}</span>
-                                        @endforeach
+                                        @empty
+                                            <span class="badge rounded-pill text-bg-light border">Comum</span>
+                                        @endforelse
                                     </div>
                                 </div>
                                 <div class="text-nowrap align-self-start">

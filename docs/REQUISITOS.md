@@ -23,9 +23,11 @@ com acompanhamento das **Atividades** executadas por Account Managers (AM) e Ana
 | **Cliente** | Empresa/entidade que originou o Projeto. |
 | **Fornecedor** | Parceiro/fabricante envolvido no Projeto. |
 | **Solução** | Produto/serviço do catálogo de um Fornecedor. |
-| **AM** | Account Manager (usuário com papel `account_manager`). |
-| **PV** | Analista de Pré-vendas (usuário com papel `pre_vendas`). |
-| **Admin Geral do Sistema** | Usuário com papel `admin_geral`: gerencia usuários e permissões (RN-35). |
+| **Responsável** | Pessoa que executa as atividades, com a função de AM e/ou PV (RN-42). **Não é usuário**: não entra no sistema. |
+| **AM** | Account Manager: Responsável com a função `account_manager`. |
+| **PV** | Analista de Pré-vendas: Responsável com a função `pre_vendas`. |
+| **Usuário** | Pessoa que entra no sistema (login). É **comum** ou **Admin Geral do Sistema** (RN-35). |
+| **Admin Geral do Sistema** | Usuário com papel `admin_geral`: gerencia usuários, responsáveis e permissões (RN-35, RN-42). |
 
 ## 3. Bounded Contexts
 
@@ -33,9 +35,10 @@ com acompanhamento das **Atividades** executadas por Account Managers (AM) e Ana
 |---|---|---|---|
 | **Projetos** | Core | `src/Projetos` | Projeto, Atividade, vínculos com fornecedores/soluções |
 | **Parceiros** | Apoio | `src/Parceiros` | Cliente, Fornecedor, Solução |
+| **Responsáveis** | Apoio | `src/Responsaveis` | Responsável (AM/PV) |
 | **Identidade (IAM)** | Genérico | `src/Identidade` | Usuário, Papéis (roles) |
 
-O contexto Projetos conhece os outros **apenas por ID** (ClienteId, FornecedorId, SolucaoId, UsuarioId).
+O contexto Projetos conhece os outros **apenas por ID** (ClienteId, FornecedorId, SolucaoId, ResponsavelId, UsuarioId).
 
 ## 4. Regras de negócio (invariantes)
 
@@ -63,7 +66,7 @@ Automação (decidida na fase de desenvolvimento do backend):
 
 ### 4.3 Atividade
 - **RN-12** Um Projeto pode ter **várias atividades abertas ao mesmo tempo**; uma não depende da outra.
-- **RN-13** Toda atividade exige **1 AM e 1 PV**.
+- **RN-13** Toda atividade exige **1 AM e 1 PV** (Responsáveis ativos com a função correspondente — RN-42).
 - **RN-14 (pré-preenchimento / fallback temporal)** Ao criar uma atividade, o formulário vem pré-preenchido com o AM e o PV
   da **última atividade criada** no projeto (ordem cronológica, aberta ou concluída), com opção de alteração.
   Se não houver atividade anterior, o usuário **deve** informar AM e PV. O domínio aplica a mesma regra
@@ -84,16 +87,17 @@ Automação (decidida na fase de desenvolvimento do backend):
   - `data_limite` — obrigatória; não pode ser anterior à `data_entrada`. (Nome em português: **não usar "deadline"**.)
   - `data_inicio` — opcional; preenchida automaticamente ao passar para `Em Andamento` se estiver vazia; pode ser informada manualmente (histórico). Não pode ser anterior à `data_entrada`.
   - `data_termino` — preenchida **somente** quando `Concluída` (informada ou, se vazia, a data atual). Não pode ser anterior à `data_entrada` nem à `data_inicio`.
-- **RN-19** `tipo` da atividade: `Mapeamento`, `Homologação`, `Implantação`, `Comercial` (obrigatório).
+- **RN-19** `tipo` da atividade (obrigatório): um dos **Tipos de Atividade ativos** cadastrados (RN-43).
+  Tipos iniciais: `Mapeamento`, `Homologação`, `Implantação`, `Comercial`.
 - **RN-20** Observação da atividade: texto opcional, sanitizado, com **autor**. Só o autor pode editá-la
   (regra ativa quando o login estiver implementado — ver Roadmap).
 - **RN-28 (edição de atividade)** Uma atividade pode ser editada, inclusive quando `Concluída` (correção de histórico).
-  - Campos editáveis: `descricao`, `tipo`, datas (`data_entrada`, `data_limite`, `data_inicio`, `data_termino`),
+  - Campos editáveis: `descricao`, `tipo` (um tipo inativo pode ser mantido, mas não escolhido — RN-43), datas (`data_entrada`, `data_limite`, `data_inicio`, `data_termino`),
     AM/PV e observação.
   - O **status não é editável** aqui: muda apenas pelas transições da RN-16.
   - As datas seguem a RN-18 e a coerência com o status atual, igual ao registro: `Não Iniciada` não tem início;
     só `Concluída` tem término; `Em Andamento`/`Parada` sem início assumem a `data_entrada`; `Concluída` sem término assume hoje.
-  - AM e PV continuam obrigatórios (RN-13) e, se trocados, devem ser usuários ativos com o papel correspondente (RN-25).
+  - AM e PV continuam obrigatórios (RN-13) e, se trocados, devem ser Responsáveis ativos com a função correspondente (RN-42).
   - A observação pode ser alterada ou removida; a restrição por autor (RN-20) passa a valer quando houver login.
   - Projeto `Cancelado` não permite editar atividades (RN-11).
   *(Decidido em 02/10/2026.)*
@@ -111,7 +115,8 @@ Automação (decidida na fase de desenvolvimento do backend):
   fornecedor (RN-23). *(Decidido em 02/10/2026.)*
 
 ### 4.5 Usuários e permissões
-- **RN-25** AM e PV **não são tabelas próprias**: são usuários com papéis (`account_manager`, `pre_vendas`, `admin_geral`).
+- **RN-25** AM e PV **não são usuários**: são **Responsáveis** (cadastro próprio, RN-42), sem login. Usuários do sistema só têm
+  o papel `admin_geral` ou nenhum (usuário comum). *(Alterado em 08/10/2026 — antes AM/PV eram usuários com papéis.)*
 - **RN-26** Inicialmente todos os usuários podem alterar status. No futuro um Admin Geral do Sistema distribuirá permissões (RBAC).
 - **RN-27 (BOLA)** A autorização acontece no **Caso de Uso** (não só em rotas/middleware), usando o ID do usuário autenticado.
 
@@ -121,9 +126,8 @@ Automação (decidida na fase de desenvolvimento do backend):
   (não revela se o e-mail existe). Há logout ("Sair").
 - **RN-34 (tudo exige login)** Todas as telas e a API exigem autenticação. Telas: sessão. API: **token pessoal** (Laravel Sanctum),
   gerado pelo próprio usuário em "Minha conta", exibido uma única vez e revogável. Inativar o usuário revoga os tokens dele.
-- **RN-35 (cadastro de usuários)** Só o **Admin Geral do Sistema** cadastra e edita usuários: nome, e-mail (único, sem diferenciar maiúsculas),
-  papéis (pelo menos 1) e situação (ativo/inativo). Usuário inativo some das listas de AM/PV para novas atividades;
-  atividades existentes não mudam (como na RN-24).
+- **RN-35 (cadastro de usuários)** Só o **Admin Geral do Sistema** cadastra e edita usuários: nome, e-mail (obrigatório, único, sem diferenciar
+  maiúsculas), se é **Admin Geral do Sistema** ou **comum** e situação (ativo/inativo). Usuário não é AM nem PV (RN-25, RN-42).
 - **RN-36 (senha temporária)** No cadastro o Admin define uma **senha temporária**; no primeiro acesso o usuário é obrigado a trocá-la
   antes de usar o sistema. O Admin pode redefinir uma senha temporária a qualquer momento (troca obrigatória de novo).
 - **RN-37 (esqueci minha senha)** Na tela de login, o usuário pede um link de redefinição por e-mail, válido por 60 minutos.
@@ -138,9 +142,30 @@ Automação (decidida na fase de desenvolvimento do backend):
   O identificador interno (`account_manager`, `pre_vendas`, `admin_geral`) **nunca muda** e os papéis não podem ser criados nem
   excluídos — papéis novos dependem do controle de permissões (RBAC, RN-26), ainda não definido. *(Decidido em 02/10/2026.)*
   Neste documento continuam valendo os termos AM, PV e Admin Geral do Sistema (linguagem ubíqua).
+  Desde a RN-42, os nomes de AM e PV são os das **funções dos Responsáveis**; continuam sendo renomeados na tela Papéis.
 - **Instalação:** num banco sem Admin Geral do Sistema ativo, o primeiro Admin é criado pelo terminal com
   `php artisan usuarios:criar-admin {email} {nome}` (pede a senha). Havendo um Admin ativo, o comando é recusado (RN-35/RN-39).
   Para recomeçar do zero (apaga **todos** os dados, recria os papéis e o primeiro Admin): `scripts/iniciar-do-zero.sh`.
+### 4.7 Responsáveis (AM e PV) *(decidido em 08/10/2026)*
+- **RN-42 (cadastro de responsáveis)** AM e PV são **Responsáveis**, separados dos usuários do sistema: **não entram no sistema**
+  e não têm ligação com usuário (se a mesma pessoa precisar entrar, é cadastrada também como usuário).
+  - Só o **Admin Geral do Sistema** cadastra e edita responsáveis.
+  - Campos: `nome` obrigatório (até 255 caracteres); `email` **opcional** — se informado, deve ser válido e **único entre os responsáveis**
+    (sem diferenciar maiúsculas; vários sem e-mail são permitidos); **funções** AM e/ou PV (pelo menos 1); situação (ativo/inativo).
+  - Todos os campos podem ser editados. Inativar e reativar a qualquer momento: o inativo some das listas de AM/PV para novas atividades
+    e para a troca de AM/PV na edição; atividades existentes **não mudam** (como na RN-24).
+  - Migração: os usuários que tinham papel AM/PV viraram responsáveis (mesmo nome, e-mail, funções e situação) e perderam esses papéis;
+    os que só tinham AM/PV continuam como usuários comuns (o Admin pode inativá-los).
+
+### 4.8 Tipos de Atividade *(decidido em 08/10/2026)*
+- **RN-43 (cadastro de tipos de atividade)** Os tipos de atividade (RN-19) são um cadastro, não uma lista fixa.
+  - Só o **Admin Geral do Sistema** adiciona, renomeia, inativa e reativa tipos. Tipos **não são excluídos** (o histórico é preservado).
+  - Nome obrigatório (até 60 caracteres) e **único**, sem diferenciar maiúsculas.
+  - **Renomear vale em todo o sistema**: atividades existentes, filtros, ordenação, gráficos e API (como na RN-41).
+  - Tipo inativo some das opções para novas atividades e para a troca de tipo na edição; atividades existentes **não mudam** (como na RN-24).
+  - Sempre há pelo menos **um tipo ativo**: inativar o último é rejeitado.
+  - API: o campo `tipo` continua recebendo o **nome** atual do tipo (ou `tipo_id`); as respostas trazem `tipo` (nome) e `tipo_id`.
+
 - Com o login, a **RN-20** (só o autor edita a observação) passa a valer. A carteira do AM (D-04) continua em aberto:
   por enquanto todo usuário logado vê todos os projetos.
 
@@ -154,10 +179,12 @@ Automação (decidida na fase de desenvolvimento do backend):
 ├── StatusProjeto (enum)
 ├── VinculoFornecedor[] (VO: fornecedorId, solucaoId?)  — mínimo 1
 └── Atividade[] (entidade interna — só é alterada através do Projeto)
-    ├── id, descricao, TipoAtividade (enum), StatusAtividade (enum)
+    ├── id, descricao, tipoId (TipoAtividade — RN-43), StatusAtividade (enum)
     ├── PeriodoAtividade (VO: dataEntrada, dataLimite, dataInicio?, dataTermino?)
-    ├── accountManagerId, preVendasId
+    ├── accountManagerId, preVendasId (ResponsavelId — RN-42)
     └── Observacao (VO: texto, autorId?) — opcional
+
+[Agregado: TipoAtividade]  (src/Projetos/Domain) — id (UUID), nome, ativo (RN-43)
 ```
 
 ## 6. Banco de dados (PostgreSQL)
@@ -174,17 +201,24 @@ Automação (decidida na fase de desenvolvimento do backend):
 
 **roles**: `id uuid pk`, `nome unique` (identificador interno: `account_manager`, `pre_vendas`, `admin_geral`),
 `descricao` (nome exibido, editável — RN-41), `sigla varchar(10) null` (padrão: AM, PV e vazio para o Admin).
+Para AM e PV, guarda só o nome e a sigla das funções dos responsáveis (RN-42).
 
-**role_user**: `user_id uuid fk`, `role_id uuid fk`, pk composta.
+**role_user**: `user_id uuid fk`, `role_id uuid fk`, pk composta. Só o papel `admin_geral` (RN-25).
+
+**responsaveis**: `id uuid pk`, `nome varchar`, `email varchar null` (único sem diferenciar maiúsculas, quando informado), `ativo bool default true`, timestamps.
+
+**responsavel_funcoes**: `responsavel_id uuid fk→responsaveis cascade`, `funcao varchar` (`account_manager` ou `pre_vendas`), pk composta.
 
 **projetos**: `id uuid pk`, `cliente_id uuid fk→clientes`, `codigo_oportunidade varchar null`, `status varchar`, timestamps.
 
 **projeto_fornecedores**: `id bigint pk`, `projeto_id uuid fk cascade`, `fornecedor_id uuid fk`, `solucao_id uuid null fk`, timestamps.
 
-**atividades**: `id uuid pk`, `projeto_id uuid fk cascade`, `descricao text`, `tipo varchar`, `status varchar`,
+**atividades**: `id uuid pk`, `projeto_id uuid fk cascade`, `descricao text`, `tipo_id uuid fk→tipos_atividade`, `status varchar`,
 `data_entrada date`, `data_limite date`, `data_inicio date null`, `data_termino date null`,
-`account_manager_id uuid fk→users`, `pre_vendas_id uuid fk→users`, `observacao text null`, `observacao_autor_id uuid null fk→users`,
+`account_manager_id uuid fk→responsaveis`, `pre_vendas_id uuid fk→responsaveis`, `observacao text null`, `observacao_autor_id uuid null fk→users`,
 `sequencia int` (ordem cronológica de criação dentro do projeto — usada no fallback de AM/PV), timestamps.
+
+**tipos_atividade**: `id uuid pk`, `nome varchar(60)` (único sem diferenciar maiúsculas), `ativo bool default true`, timestamps (RN-43).
 
 > Campos que **não** existem e não devem ser criados sem decisão registrada aqui: `titulo`, `ordem`, `nome`, `deadline`, status `Pendente`.
 
@@ -199,6 +233,7 @@ Automação (decidida na fase de desenvolvimento do backend):
 | `AlterarSituacaoCliente` / `AlterarSituacaoFornecedor` | Parceiros | RN-31 (ativar/inativar) |
 | `EditarSolucao` / `AlterarSituacaoSolucao` | Parceiros | RN-31, RN-32 |
 | `CadastrarUsuario` / `EditarUsuario` / `AlterarSituacaoUsuario` | Identidade | RN-35, RN-39 (só Admin Geral do Sistema) |
+| `CadastrarResponsavel` / `EditarResponsavel` / `AlterarSituacaoResponsavel` | Responsáveis | RN-42 (só Admin Geral do Sistema) |
 | `RedefinirSenhaTemporaria` | Identidade | RN-36 (só Admin Geral do Sistema) |
 | `TrocarSenha` / `RedefinirSenhaPorLink` | Identidade | RN-36..38, RN-40 |
 | `GerarTokenDeApi` / `RevogarTokenDeApi` | Identidade | RN-34, RN-40 |
@@ -210,6 +245,7 @@ Automação (decidida na fase de desenvolvimento do backend):
 | `CancelarProjeto` | Projetos | RN-11 |
 | `EditarAtividade` | Projetos | RN-28 |
 | `AlterarClienteDoProjeto` | Projetos | RN-29 |
+| `CadastrarTipoAtividade` / `RenomearTipoAtividade` / `AlterarSituacaoTipoAtividade` | Projetos | RN-43 (só Admin Geral do Sistema) |
 | `ObterResponsaveisSugeridos` (query) | Projetos | RN-14 — AM/PV da última atividade |
 
 | `PainelOperacional` (query) | Projetos | Indicadores do Dashboards › Painel operacional |
@@ -251,7 +287,7 @@ app/                 Apresentação: Livewire, Controllers API, FormRequests, Pr
 3. 🔶 Login/logout, esqueci minha senha, tokens de API e cadastro de usuários ✅ (RN-33..40); observação por autor ✅ (RN-20);
    BOLA da carteira do AM ⏳ (D-04).
 4. ✅ Cadastro, edição e ativação/inativação de Clientes, Fornecedores e Soluções (RN-30..32) e de Usuários (RN-35);
-   renomear papéis (RN-41). Papéis novos com permissões (RBAC) ⏳ — depende da lista de permissões e de D-03/D-04.
+   renomear papéis (RN-41); Responsáveis (AM/PV) separados dos usuários (RN-42) ✅; cadastro de Tipos de Atividade (RN-43) ✅. Papéis novos com permissões (RBAC) ⏳ — depende da lista de permissões e de D-03/D-04.
 5. 🔶 Edição de atividade (RN-28) e troca de cliente do projeto (RN-29) ✅; edição de Código de Oportunidade ⏳.
 6. 🔶 Menu **Dashboards** (ao lado de Projetos, Clientes e Fornecedores), que agrupa dashboards e relatórios:
    tela "Todas as atividades" ✅ (somente leitura: cliente em destaque, depois a atividade e os demais dados).
@@ -282,3 +318,4 @@ app/                 Apresentação: Livewire, Controllers API, FormRequests, Pr
 - **D-02** Mover para `Parada` exige justificativa obrigatória na observação?
 - **D-03** Quem pode cancelar projeto (todos vs. só Admin Geral do Sistema)?
 - **D-04** Carteira do AM (BOLA): o AM vê só projetos em que é AM de alguma atividade, ou há um "dono" do projeto?
+  *(Desde a RN-42 o AM não entra no sistema, então essa carteira só voltará a fazer sentido se um usuário puder ser ligado a um responsável.)*

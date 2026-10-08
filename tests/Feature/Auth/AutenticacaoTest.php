@@ -14,10 +14,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Livewire\Livewire;
-use Src\Identidade\Domain\Papel;
 
 beforeEach(function () {
-    $this->ana = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create([
+    $this->ana = User::factory()->create([
         'name' => 'Ana', 'email' => 'ana@breno.local', 'password' => 'Senha123',
     ]);
 });

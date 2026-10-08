@@ -14,7 +14,6 @@ use Src\Projetos\Domain\ValueObjects\PeriodoAtividade;
 use Src\Projetos\Domain\ValueObjects\ProjetoId;
 use Src\Projetos\Domain\ValueObjects\StatusAtividade;
 use Src\Projetos\Domain\ValueObjects\StatusProjeto;
-use Src\Projetos\Domain\ValueObjects\TipoAtividade;
 use Src\Projetos\Domain\ValueObjects\VinculoFornecedor;
 use Src\Projetos\Infrastructure\Persistence\Eloquent\Models\AtividadeModel;
 use Src\Projetos\Infrastructure\Persistence\Eloquent\Models\ProjetoFornecedorModel;
@@ -55,7 +54,7 @@ final class ProjetoMapper
         return [
             'sequencia' => $sequencia,
             'descricao' => $atividade->getDescricao(),
-            'tipo' => $atividade->getTipo()->value,
+            'tipo_id' => $atividade->getTipoId(),
             'status' => $atividade->getStatus()->value,
             'data_entrada' => $periodo->dataEntrada->format('Y-m-d'),
             'data_limite' => $periodo->dataLimite->format('Y-m-d'),
@@ -73,7 +72,7 @@ final class ProjetoMapper
         return Atividade::reconstituir(
             id: $a->id,
             descricao: $a->descricao,
-            tipo: TipoAtividade::from($a->tipo),
+            tipoId: $a->tipo_id,
             status: StatusAtividade::from($a->status),
             periodo: new PeriodoAtividade(
                 self::data($a->data_entrada),

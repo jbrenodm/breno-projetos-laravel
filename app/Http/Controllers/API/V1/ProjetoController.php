@@ -78,7 +78,7 @@ final class ProjetoController extends Controller
         $id = $useCase->execute(new RegistrarAtividadeInput(
             projetoId: $projetoId,
             descricao: $request->validated('descricao'),
-            tipo: $request->validated('tipo'),
+            tipoId: $request->tipoId(),
             status: $request->validated('status'),
             dataEntrada: new DateTimeImmutable($request->validated('data_entrada')),
             dataLimite: new DateTimeImmutable($request->validated('data_limite')),
@@ -103,7 +103,7 @@ final class ProjetoController extends Controller
             projetoId: $projetoId,
             atividadeId: $atividadeId,
             descricao: $request->validated('descricao'),
-            tipo: $request->validated('tipo'),
+            tipoId: $request->tipoId(),
             dataEntrada: new DateTimeImmutable($request->validated('data_entrada')),
             dataLimite: new DateTimeImmutable($request->validated('data_limite')),
             accountManagerId: $request->validated('account_manager_id'),

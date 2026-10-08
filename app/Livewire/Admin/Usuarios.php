@@ -53,8 +53,8 @@ final class Usuarios extends Component
         $this->validate([
             'nome' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255'],
-            'papeis' => ['required', 'array', 'min:1'],
-            'papeis.*' => [Rule::enum(Papel::class)],
+            'papeis' => ['array'],
+            'papeis.*' => [Rule::in([Papel::ADMIN_GERAL->value])], // RN-25: comum (nenhum) ou Admin Geral do Sistema
             'senhaTemporaria' => $editando ? ['nullable'] : ['required', 'string', 'max:255'],
         ], attributes: ['nome' => 'nome', 'email' => 'e-mail', 'papeis' => 'papéis', 'senhaTemporaria' => 'senha temporária']);
 
@@ -147,7 +147,7 @@ final class Usuarios extends Component
     {
         return view('livewire.admin.usuarios', [
             'usuarios' => $usuarios->listarTodos(),
-            'todosPapeis' => Papel::cases(),
+            'todosPapeis' => [Papel::ADMIN_GERAL],
         ]);
     }
 }

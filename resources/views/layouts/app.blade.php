@@ -45,6 +45,10 @@
                                 @can('admin-geral')
                                     <li><a class="dropdown-item @if(request()->routeIs('usuarios.*')) active @endif" href="{{ route('usuarios.index') }}" wire:navigate>
                                         <i class="bi bi-people me-2"></i>Usuários</a></li>
+                                    <li><a class="dropdown-item @if(request()->routeIs('responsaveis.*')) active @endif" href="{{ route('responsaveis.index') }}" wire:navigate>
+                                        <i class="bi bi-person-workspace me-2"></i>Responsáveis</a></li>
+                                    <li><a class="dropdown-item @if(request()->routeIs('tipos-atividade.*')) active @endif" href="{{ route('tipos-atividade.index') }}" wire:navigate>
+                                        <i class="bi bi-tags me-2"></i>Tipos de atividade</a></li>
                                     <li><a class="dropdown-item @if(request()->routeIs('papeis.*')) active @endif" href="{{ route('papeis.index') }}" wire:navigate>
                                         <i class="bi bi-person-badge me-2"></i>Papéis</a></li>
                                 @endcan

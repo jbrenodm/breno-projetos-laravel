@@ -16,12 +16,15 @@ use Src\Parceiros\Application\DTOs\CadastrarClienteInput;
 use Src\Parceiros\Application\DTOs\CadastrarFornecedorInput;
 use Src\Parceiros\Application\UseCases\CadastrarCliente;
 use Src\Parceiros\Application\UseCases\CadastrarFornecedor;
+use Src\Responsaveis\Domain\Funcao;
 use Src\Shared\Application\AcessoNegadoException;
 
 beforeEach(function () {
+    $this->seed(PapeisSeeder::class); // como numa instalação real: os três papéis existem em "roles"
     $this->admin = User::factory()->comPapel(Papel::ADMIN_GERAL)->create(['name' => 'Admin']);
-    $this->ana = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create(['name' => 'Ana']);
-    $this->paulo = User::factory()->comPapel(Papel::PRE_VENDAS)->create(['name' => 'Paulo']);
+    $this->ana = responsavel('Ana', Funcao::ACCOUNT_MANAGER);
+    $this->paulo = responsavel('Paulo', Funcao::PRE_VENDAS);
+    $this->comum = User::factory()->create(['name' => 'Comum']);
 });
 
 function renomear(string $papel, string $nome, ?string $sigla): void
@@ -31,8 +34,8 @@ function renomear(string $papel, string $nome, ?string $sigla): void
 }
 
 it('RN-41: só o Admin Geral do Sistema acessa e renomeia papéis', function () {
-    $this->actingAs($this->ana)->get('/papeis')->assertForbidden();
-    expect(fn () => app(RenomearPapel::class)->execute(new RenomearPapelInput($this->ana->id, 'pre_vendas', 'X')))
+    $this->actingAs($this->comum)->get('/papeis')->assertForbidden();
+    expect(fn () => app(RenomearPapel::class)->execute(new RenomearPapelInput($this->comum->id, 'pre_vendas', 'X')))
         ->toThrow(AcessoNegadoException::class);
 
     $this->actingAs($this->admin)->get('/papeis')->assertOk()
@@ -56,7 +59,7 @@ it('RN-41: o novo nome e a nova sigla valem em todas as telas, filtros, gráfico
         ->assertUnprocessable()->assertJsonPath('error', 'Para registrar a primeira atividade do projeto é obrigatório informar Gerente de Contas e Pré-vendas.');
     $this->postJson("/api/v1/projetos/{$projeto}/atividades", ['descricao' => 'X', 'tipo' => 'Comercial', 'status' => 'Não Iniciada',
         'data_entrada' => '2020-01-01', 'data_limite' => '2020-01-02', 'account_manager_id' => $this->paulo->id, 'pre_vendas_id' => $this->paulo->id])
-        ->assertUnprocessable()->assertJsonPath('error', 'O Gerente de Contas informado não existe, está inativo ou não possui esse papel.');
+        ->assertUnprocessable()->assertJsonPath('error', 'O Gerente de Contas informado não existe, está inativo ou não possui essa função.');
     $this->postJson("/api/v1/projetos/{$projeto}/atividades", ['descricao' => 'Levantamento', 'tipo' => 'Comercial', 'status' => 'Não Iniciada',
         'data_entrada' => '2020-01-01', 'data_limite' => '2020-01-02', 'account_manager_id' => $this->ana->id, 'pre_vendas_id' => $this->paulo->id])
         ->assertCreated();
@@ -73,7 +76,7 @@ it('RN-41: o novo nome e a nova sigla valem em todas as telas, filtros, gráfico
     Livewire::test(TodasAsAtividades::class)->assertSee(['Todos os GCs', 'Todos os PVs', 'GC: Ana']);
     $this->get('/dashboards/operacional')->assertSeeInOrder(['Atividades atrasadas por Gerente de Contas', 'Ana'])->assertDontSee('Account Manager');
     $this->get('/dashboards/prazos')->assertSee('Atraso médio por Gerente de Contas');
-    $this->get('/usuarios')->assertSee('Gerente de Contas')->assertDontSee('Account Manager');
+    $this->get('/responsaveis')->assertSee('Gerente de Contas')->assertDontSee('Account Manager');
 });
 
 it('RN-41: papel sem sigla usa o nome; nome e sigla não se repetem entre papéis', function () {

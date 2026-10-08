@@ -49,7 +49,7 @@
                 <div class="col-6 col-lg-3">
                     <select class="form-select" wire:model.live="tipo" aria-label="Tipo">
                         <option value="">Todos os tipos</option>
-                        @foreach ($tipos as $t) <option value="{{ $t->value }}">{{ $t->value }}</option> @endforeach
+                        @foreach ($tipos as $t) <option value="{{ $t['id'] }}">{{ $t['nome'] }}</option> @endforeach
                     </select>
                 </div>
                 <div class="col-12 col-md-6 col-lg-3">

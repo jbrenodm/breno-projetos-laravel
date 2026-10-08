@@ -11,27 +11,36 @@ use Src\Parceiros\Application\DTOs\CadastrarFornecedorInput;
 use Src\Parceiros\Application\UseCases\CadastrarCliente;
 use Src\Parceiros\Application\UseCases\CadastrarFornecedor;
 use Src\Parceiros\Infrastructure\Persistence\Eloquent\Models\ClienteModel;
+use Src\Responsaveis\Application\DTOs\CadastrarResponsavelInput;
+use Src\Responsaveis\Application\UseCases\CadastrarResponsavel;
+use Src\Responsaveis\Domain\Funcao;
+use Src\Responsaveis\Infrastructure\Persistence\ResponsavelModel;
 
 /**
  * Dados para desenvolvimento local (NÃO usar em produção).
- * Usuários: senha "password".
+ * Usuário Admin: admin@breno.local, senha "password". AM e PV são Responsáveis (RN-42), sem login.
  */
 class DadosDeExemploSeeder extends Seeder
 {
-    public function run(CadastrarCliente $cadastrarCliente, CadastrarFornecedor $cadastrarFornecedor): void
+    public function run(CadastrarCliente $cadastrarCliente, CadastrarFornecedor $cadastrarFornecedor, CadastrarResponsavel $cadastrarResponsavel): void
     {
-        $usuarios = [
-            ['Breno (Admin)', 'admin@breno.local', [Papel::ADMIN_GERAL, Papel::PRE_VENDAS]],
-            ['Ana Account Manager', 'ana.am@breno.local', [Papel::ACCOUNT_MANAGER]],
-            ['Carlos Account Manager', 'carlos.am@breno.local', [Papel::ACCOUNT_MANAGER]],
-            ['Paula Pré-vendas', 'paula.pv@breno.local', [Papel::PRE_VENDAS]],
-            ['Rafael Pré-vendas', 'rafael.pv@breno.local', [Papel::PRE_VENDAS]],
-        ];
+        $admin = User::query()->firstOrCreate(['email' => 'admin@breno.local'], ['name' => 'Breno (Admin)', 'password' => 'password', 'ativo' => true]);
+        $admin->roles()->syncWithoutDetaching([RoleModel::garantir(Papel::ADMIN_GERAL)->id]);
 
-        foreach ($usuarios as [$nome, $email, $papeis]) {
-            $user = User::query()->firstOrCreate(['email' => $email], ['name' => $nome, 'password' => 'password', 'ativo' => true]);
-            $ids = RoleModel::query()->whereIn('nome', array_map(fn (Papel $p) => $p->value, $papeis))->pluck('id');
-            $user->roles()->syncWithoutDetaching($ids);
+        if (! ResponsavelModel::query()->exists()) {
+            $responsaveis = [
+                ['Ana Account Manager', 'ana.am@breno.local', [Funcao::ACCOUNT_MANAGER]],
+                ['Carlos Account Manager', null, [Funcao::ACCOUNT_MANAGER]],
+                ['Paula Pré-vendas', 'paula.pv@breno.local', [Funcao::PRE_VENDAS]],
+                ['Rafael Pré-vendas', null, [Funcao::PRE_VENDAS]],
+                ['Breno Muniz', null, [Funcao::ACCOUNT_MANAGER, Funcao::PRE_VENDAS]],
+            ];
+
+            foreach ($responsaveis as [$nome, $email, $funcoes]) {
+                $cadastrarResponsavel->execute(new CadastrarResponsavelInput(
+                    $admin->id, $nome, $email, array_map(fn (Funcao $f) => $f->value, $funcoes),
+                ));
+            }
         }
 
         if (ClienteModel::query()->exists()) {

@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\API\V1;
 
+use App\Http\Requests\API\V1\Concerns\InformaTipoDeAtividade;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Src\Projetos\Domain\ValueObjects\StatusAtividade;
-use Src\Projetos\Domain\ValueObjects\TipoAtividade;
 
 final class RegistrarAtividadeRequest extends FormRequest
 {
+    use InformaTipoDeAtividade;
+
     public function rules(): array
     {
-        return [
+        return $this->regrasDoTipo() + [
             'descricao' => ['required', 'string', 'max:2000'],
-            'tipo' => ['required', Rule::enum(TipoAtividade::class)],
             'status' => ['required', Rule::enum(StatusAtividade::class)],
             'data_entrada' => ['required', 'date_format:Y-m-d'],
             'data_limite' => ['required', 'date_format:Y-m-d'],

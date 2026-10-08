@@ -24,14 +24,17 @@ it('RN-38: aceita senha válida (inclusive com acentos)', function () {
     expect(true)->toBeTrue();
 });
 
-it('RN-35/RN-36: nasce ativo, com senha temporária e papéis sem repetição', function () {
-    $u = Usuario::cadastrar(uuid(), ' <b>Ana</b> ', new Email('ana@x.com'), [Papel::ACCOUNT_MANAGER, Papel::ACCOUNT_MANAGER], 'hash');
+it('RN-35/RN-36: nasce ativo, com senha temporária; usuário comum não tem papel', function () {
+    $u = Usuario::cadastrar(uuid(), ' <b>Ana</b> ', new Email('ana@x.com'), [], 'hash');
 
     expect($u->getNome())->toBe('Ana')
         ->and($u->isAtivo())->toBeTrue()
         ->and($u->deveTrocarSenha())->toBeTrue()
-        ->and($u->getPapeis())->toBe([Papel::ACCOUNT_MANAGER])
+        ->and($u->getPapeis())->toBe([])
         ->and($u->ehAdminGeralAtivo())->toBeFalse();
+
+    $admin = Usuario::cadastrar(uuid(), 'Bia', new Email('bia@x.com'), [Papel::ADMIN_GERAL, Papel::ADMIN_GERAL], 'hash');
+    expect($admin->getPapeis())->toBe([Papel::ADMIN_GERAL])->and($admin->ehAdminGeralAtivo())->toBeTrue();
 
     $u->definirSenhaPropria('novo-hash');
     expect($u->deveTrocarSenha())->toBeFalse();
@@ -39,9 +42,10 @@ it('RN-35/RN-36: nasce ativo, com senha temporária e papéis sem repetição', 
     expect($u->deveTrocarSenha())->toBeTrue();
 });
 
-it('RN-35: exige pelo menos um papel', function () {
-    Usuario::cadastrar(uuid(), 'Ana', new Email('ana@x.com'), [], 'hash');
-})->throws(RegraDeIdentidadeException::class, 'O usuário deve ter pelo menos um papel.');
+it('RN-25/RN-42: usuário não pode ter papel de AM ou PV (são Responsáveis)', function (Papel $papel) {
+    Usuario::cadastrar(uuid(), 'Ana', new Email('ana@x.com'), [Papel::ADMIN_GERAL, $papel], 'hash');
+})->with([Papel::ACCOUNT_MANAGER, Papel::PRE_VENDAS])
+    ->throws(RegraDeIdentidadeException::class, 'Usuário só pode ter o papel de Admin Geral do Sistema. AM e PV são cadastrados em Responsáveis.');
 
 it('Admin Geral do Sistema inativo não conta como Admin ativo', function () {
     $u = Usuario::cadastrar(uuid(), 'Admin', new Email('a@x.com'), [Papel::ADMIN_GERAL], 'hash');

@@ -12,7 +12,6 @@ use Src\Projetos\Domain\ValueObjects\PeriodoAtividade;
 use Src\Projetos\Domain\ValueObjects\ProjetoId;
 use Src\Projetos\Domain\ValueObjects\StatusAtividade;
 use Src\Projetos\Domain\ValueObjects\StatusProjeto;
-use Src\Projetos\Domain\ValueObjects\TipoAtividade;
 use Src\Projetos\Domain\ValueObjects\VinculoFornecedor;
 
 function novoProjeto(): Projeto
@@ -23,7 +22,7 @@ function novoProjeto(): Projeto
 function adicionar(Projeto $p, StatusAtividade $status = StatusAtividade::NAO_INICIADA, ?string $am = null, ?string $pv = null): string
 {
     return $p->adicionarAtividade(
-        uuid(), 'Atividade', TipoAtividade::MAPEAMENTO, $status,
+        uuid(), 'Atividade', TIPO_MAPEAMENTO, $status,
         new PeriodoAtividade(dia('2026-10-01'), dia('2026-10-10')),
         $am, $pv, null, dia('2026-10-02'),
     )->getId();
@@ -115,7 +114,7 @@ it('RN-28: edita atividade pelo agregado', function () {
     $id = adicionar($p, am: uuid(), pv: uuid());
     $novoAm = uuid();
 
-    $p->editarAtividade($id, 'Editada', TipoAtividade::COMERCIAL, new PeriodoAtividade(dia('2026-10-01'), dia('2026-10-20')),
+    $p->editarAtividade($id, 'Editada', TIPO_COMERCIAL, new PeriodoAtividade(dia('2026-10-01'), dia('2026-10-20')),
         $novoAm, uuid(), null, null, dia('2026-10-02'));
 
     expect($p->buscarAtividade($id)->getAccountManagerId())->toBe($novoAm)
@@ -127,7 +126,7 @@ it('RN-11/RN-28: projeto cancelado não permite editar atividade', function () {
     $id = adicionar($p, am: uuid(), pv: uuid());
     $p->cancelar();
 
-    $p->editarAtividade($id, 'Editada', TipoAtividade::COMERCIAL, new PeriodoAtividade(dia('2026-10-01'), dia('2026-10-20')),
+    $p->editarAtividade($id, 'Editada', TIPO_COMERCIAL, new PeriodoAtividade(dia('2026-10-01'), dia('2026-10-20')),
         uuid(), uuid(), null, null, dia('2026-10-02'));
 })->throws(ProjetoCanceladoException::class);
 

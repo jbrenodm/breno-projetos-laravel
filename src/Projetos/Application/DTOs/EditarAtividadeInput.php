@@ -12,7 +12,7 @@ final readonly class EditarAtividadeInput
         public string $projetoId,
         public string $atividadeId,
         public string $descricao,
-        public string $tipo,
+        public string $tipoId,
         public DateTimeImmutable $dataEntrada,
         public DateTimeImmutable $dataLimite,
         public string $accountManagerId,

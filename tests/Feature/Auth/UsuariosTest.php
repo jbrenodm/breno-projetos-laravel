@@ -8,14 +8,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 use Src\Identidade\Application\DTOs\CadastrarUsuarioInput;
-use Src\Identidade\Application\Queries\UsuariosQuery;
 use Src\Identidade\Application\UseCases\CadastrarUsuario;
 use Src\Identidade\Domain\Papel;
 use Src\Shared\Application\AcessoNegadoException;
+use Src\Shared\Domain\RegraDeNegocioException;
 
 beforeEach(function () {
     $this->admin = User::factory()->comPapel(Papel::ADMIN_GERAL)->create(['name' => 'Admin']);
-    $this->ana = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create(['name' => 'Ana', 'email' => 'ana@breno.local']);
+    $this->ana = User::factory()->create(['name' => 'Ana', 'email' => 'ana@breno.local']);
 });
 
 it('RN-35: só o Admin Geral do Sistema acessa a gestão de usuários (rota, menu e caso de uso)', function () {
@@ -23,53 +23,61 @@ it('RN-35: só o Admin Geral do Sistema acessa a gestão de usuários (rota, men
     $this->actingAs($this->ana)->get('/')->assertDontSee('href="'.route('usuarios.index').'"', false);
 
     expect(fn () => app(CadastrarUsuario::class)->execute(
-        new CadastrarUsuarioInput($this->ana->id, 'X', 'x@x.com', ['pre_vendas'], 'Senha123')
+        new CadastrarUsuarioInput($this->ana->id, 'X', 'x@x.com', [], 'Senha123')
     ))->toThrow(AcessoNegadoException::class);
 
     $this->actingAs($this->admin)->get('/usuarios')->assertOk()->assertSee(['Usuários', 'Ana']);
     $this->actingAs($this->admin)->get('/')->assertSee('href="'.route('usuarios.index').'"', false);
 });
 
-it('RN-35/RN-36: Admin cadastra usuário com senha temporária; e-mail é único', function () {
+it('RN-35/RN-36: Admin cadastra usuário comum com senha temporária; e-mail é único', function () {
     $this->actingAs($this->admin);
 
     Livewire::test(Usuarios::class)
-        ->set('nome', 'Paula PV')->set('email', 'Paula@Breno.Local')
-        ->set('papeis', ['pre_vendas', 'account_manager'])->set('senhaTemporaria', 'Temp1234')
-        ->call('salvar')->assertHasNoErrors()->assertSee(['Paula PV', 'paula@breno.local', 'Senha temporária']);
+        ->set('nome', 'Paula')->set('email', 'Paula@Breno.Local')->set('senhaTemporaria', 'Temp1234')
+        ->call('salvar')->assertHasNoErrors()->assertSee(['Paula', 'paula@breno.local', 'Senha temporária', 'Comum']);
 
     $paula = User::query()->where('email', 'paula@breno.local')->firstOrFail();
     expect($paula->deve_trocar_senha)->toBeTrue()
         ->and(Hash::check('Temp1234', $paula->password))->toBeTrue()
-        ->and($paula->roles->pluck('nome')->sort()->values()->all())->toBe(['account_manager', 'pre_vendas']);
+        ->and($paula->roles)->toBeEmpty();
 
     Livewire::test(Usuarios::class)
-        ->set('nome', 'Outra')->set('email', 'ANA@breno.local')->set('papeis', ['pre_vendas'])->set('senhaTemporaria', 'Temp1234')
+        ->set('nome', 'Outra')->set('email', 'ANA@breno.local')->set('senhaTemporaria', 'Temp1234')
         ->call('salvar')->assertSee('Já existe um usuário com este e-mail.');
 
     Livewire::test(Usuarios::class)
-        ->set('nome', 'Fraca')->set('email', 'fraca@breno.local')->set('papeis', ['pre_vendas'])->set('senhaTemporaria', 'abc')
+        ->set('nome', 'Fraca')->set('email', 'fraca@breno.local')->set('senhaTemporaria', 'abc')
         ->call('salvar')->assertSee('mínimo 8 caracteres');
-
-    Livewire::test(Usuarios::class)
-        ->set('nome', 'Sem papel')->set('email', 'sem@breno.local')->set('senhaTemporaria', 'Temp1234')
-        ->call('salvar')->assertHasErrors(['papeis']);
 });
 
-it('RN-35: Admin edita nome, e-mail e papéis', function () {
+it('RN-25/RN-42: usuário não recebe papel de AM ou PV (tela e caso de uso)', function () {
+    $this->actingAs($this->admin);
+
+    Livewire::test(Usuarios::class)->assertSee('Admin Geral do Sistema')->assertDontSee('Account Manager')
+        ->set('nome', 'Paula')->set('email', 'paula@breno.local')->set('papeis', ['pre_vendas'])->set('senhaTemporaria', 'Temp1234')
+        ->call('salvar')->assertHasErrors(['papeis.0']);
+
+    expect(fn () => app(CadastrarUsuario::class)->execute(
+        new CadastrarUsuarioInput($this->admin->id, 'Paula', 'paula@breno.local', ['account_manager'], 'Temp1234')
+    ))->toThrow(RegraDeNegocioException::class, 'Usuário só pode ter o papel de Admin Geral do Sistema.');
+    $this->assertDatabaseMissing('users', ['email' => 'paula@breno.local']);
+});
+
+it('RN-35: Admin edita nome, e-mail e se é Admin Geral do Sistema', function () {
     $this->actingAs($this->admin);
 
     Livewire::test(Usuarios::class)
         ->call('editar', $this->ana->id)
-        ->assertSet('email', 'ana@breno.local')->assertSet('papeis', ['account_manager'])
-        ->set('nome', 'Ana Souza')->set('papeis', ['account_manager', 'pre_vendas'])
+        ->assertSet('email', 'ana@breno.local')->assertSet('papeis', [])
+        ->set('nome', 'Ana Souza')->set('papeis', ['admin_geral'])
         ->call('salvar')->assertHasNoErrors()->assertSee('Usuário atualizado.');
 
     expect($this->ana->fresh()->name)->toBe('Ana Souza')
-        ->and($this->ana->fresh()->roles->pluck('nome')->sort()->values()->all())->toBe(['account_manager', 'pre_vendas']);
+        ->and($this->ana->fresh()->ehAdminGeral())->toBeTrue();
 });
 
-it('RN-35/RN-34: inativar desconecta e revoga tokens; usuário inativo some das listas de AM', function () {
+it('RN-35/RN-34: inativar desconecta e revoga tokens', function () {
     $this->ana->createToken('integração');
     DB::table('sessions')->insert(['id' => 'sessao-ana', 'user_id' => $this->ana->id, 'payload' => '', 'last_activity' => time()]);
     $this->actingAs($this->admin);
@@ -79,7 +87,6 @@ it('RN-35/RN-34: inativar desconecta e revoga tokens; usuário inativo some das 
     expect($this->ana->fresh()->ativo)->toBeFalse();
     $this->assertDatabaseCount('personal_access_tokens', 0);
     $this->assertDatabaseMissing('sessions', ['id' => 'sessao-ana']);
-    expect(app(UsuariosQuery::class)->listarAtivosPorPapel(Papel::ACCOUNT_MANAGER))->toBe([]);
 
     Livewire::test(Usuarios::class)->call('alterarSituacao', $this->ana->id, true);
     expect($this->ana->fresh()->ativo)->toBeTrue();
@@ -90,13 +97,13 @@ it('RN-39: não deixa o sistema sem Admin Geral do Sistema ativo', function () {
 
     Livewire::test(Usuarios::class)->call('alterarSituacao', $this->admin->id, false)
         ->assertSee('O sistema precisa ter pelo menos um Admin Geral do Sistema ativo.');
-    Livewire::test(Usuarios::class)->call('editar', $this->admin->id)->set('papeis', ['pre_vendas'])->call('salvar')
+    Livewire::test(Usuarios::class)->call('editar', $this->admin->id)->set('papeis', [])->call('salvar')
         ->assertSee('O sistema precisa ter pelo menos um Admin Geral do Sistema ativo.');
     expect($this->admin->fresh()->ehAdminGeral())->toBeTrue();
 
     // com um segundo Admin ativo, a operação é permitida
     User::factory()->comPapel(Papel::ADMIN_GERAL)->create();
-    Livewire::test(Usuarios::class)->call('editar', $this->admin->id)->set('papeis', ['pre_vendas'])->call('salvar')->assertHasNoErrors();
+    Livewire::test(Usuarios::class)->call('editar', $this->admin->id)->set('papeis', [])->call('salvar')->assertHasNoErrors();
     expect($this->admin->fresh()->ehAdminGeral())->toBeFalse();
 });
 

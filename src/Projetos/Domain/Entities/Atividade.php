@@ -12,7 +12,6 @@ use Src\Projetos\Domain\Exceptions\TransicaoDeStatusInvalidaException;
 use Src\Projetos\Domain\ValueObjects\Observacao;
 use Src\Projetos\Domain\ValueObjects\PeriodoAtividade;
 use Src\Projetos\Domain\ValueObjects\StatusAtividade;
-use Src\Projetos\Domain\ValueObjects\TipoAtividade;
 use Src\Shared\Domain\Uuid;
 
 /**
@@ -25,7 +24,7 @@ final class Atividade
     private function __construct(
         private readonly string $id,
         private string $descricao,
-        private TipoAtividade $tipo,
+        private string $tipoId,
         private StatusAtividade $status,
         private PeriodoAtividade $periodo,
         private string $accountManagerId,
@@ -39,7 +38,7 @@ final class Atividade
     public static function registrar(
         string $id,
         string $descricao,
-        TipoAtividade $tipo,
+        string $tipoId,
         StatusAtividade $status,
         PeriodoAtividade $periodo,
         string $accountManagerId,
@@ -48,27 +47,28 @@ final class Atividade
         DateTimeImmutable $hoje,
     ): self {
         self::validarId($id);
+        self::validarTipo($tipoId);
         $descricao = self::validarDescricao($descricao);
         self::validarResponsavel($accountManagerId, 'Account Manager');
         self::validarResponsavel($preVendasId, 'Pré-vendas');
 
         $periodo = self::ajustarPeriodoAoStatus($status, $periodo, $hoje);
 
-        return new self($id, $descricao, $tipo, $status, $periodo, $accountManagerId, $preVendasId, $observacao);
+        return new self($id, $descricao, $tipoId, $status, $periodo, $accountManagerId, $preVendasId, $observacao);
     }
 
     /** Reconstrução a partir da persistência (sem reaplicar regras de criação). */
     public static function reconstituir(
         string $id,
         string $descricao,
-        TipoAtividade $tipo,
+        string $tipoId,
         StatusAtividade $status,
         PeriodoAtividade $periodo,
         string $accountManagerId,
         string $preVendasId,
         ?Observacao $observacao,
     ): self {
-        return new self($id, $descricao, $tipo, $status, $periodo, $accountManagerId, $preVendasId, $observacao);
+        return new self($id, $descricao, $tipoId, $status, $periodo, $accountManagerId, $preVendasId, $observacao);
     }
 
     /**
@@ -102,7 +102,7 @@ final class Atividade
      */
     public function editar(
         string $descricao,
-        TipoAtividade $tipo,
+        string $tipoId,
         PeriodoAtividade $periodo,
         string $accountManagerId,
         string $preVendasId,
@@ -110,6 +110,7 @@ final class Atividade
         ?string $usuarioId,
         DateTimeImmutable $hoje,
     ): void {
+        self::validarTipo($tipoId);
         $descricao = self::validarDescricao($descricao);
         self::validarResponsavel($accountManagerId, 'Account Manager');
         self::validarResponsavel($preVendasId, 'Pré-vendas');
@@ -117,7 +118,7 @@ final class Atividade
         $novaObservacao = $this->observacaoEditada($observacao, $usuarioId);
 
         $this->descricao = $descricao;
-        $this->tipo = $tipo;
+        $this->tipoId = $tipoId;
         $this->periodo = $periodo;
         $this->accountManagerId = $accountManagerId;
         $this->preVendasId = $preVendasId;
@@ -180,6 +181,14 @@ final class Atividade
         }
     }
 
+    /** RN-19: a existência e a situação do tipo (RN-43) são verificadas no caso de uso. */
+    private static function validarTipo(string $tipoId): void
+    {
+        if (! Uuid::ehValido($tipoId)) {
+            throw new RegraDeProjetoException('O identificador do tipo de atividade deve ser um UUID válido.');
+        }
+    }
+
     private static function validarDescricao(string $descricao): string
     {
         $limpa = trim(strip_tags($descricao));
@@ -212,9 +221,9 @@ final class Atividade
         return $this->descricao;
     }
 
-    public function getTipo(): TipoAtividade
+    public function getTipoId(): string
     {
-        return $this->tipo;
+        return $this->tipoId;
     }
 
     public function getStatus(): StatusAtividade

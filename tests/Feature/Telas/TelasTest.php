@@ -9,22 +9,21 @@ use App\Livewire\Parceiros\Clientes;
 use App\Livewire\Parceiros\Fornecedores;
 use App\Livewire\Projetos\DetalheProjeto;
 use App\Livewire\Projetos\PainelProjetos;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
-use Src\Identidade\Domain\Papel;
 use Src\Parceiros\Application\DTOs\CadastrarClienteInput;
 use Src\Parceiros\Application\DTOs\CadastrarFornecedorInput;
 use Src\Parceiros\Application\UseCases\CadastrarCliente;
 use Src\Parceiros\Application\UseCases\CadastrarFornecedor;
 use Src\Projetos\Application\Queries\ProjetoQuery;
+use Src\Responsaveis\Domain\Funcao;
 use Src\Shared\Application\Ports\Relogio;
 
 beforeEach(function () {
     $this->clienteId = app(CadastrarCliente::class)->execute(new CadastrarClienteInput('Banco Teste S.A.', 'Banco Teste'));
     $this->fornecedorId = app(CadastrarFornecedor::class)->execute(new CadastrarFornecedorInput('Alpha Ltda', 'Alpha', null, ['EDR']));
-    $this->am = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create(['name' => 'Ana AM']);
-    $this->pv = User::factory()->comPapel(Papel::PRE_VENDAS)->create(['name' => 'Paulo PV']);
+    $this->am = responsavel('Ana AM', Funcao::ACCOUNT_MANAGER);
+    $this->pv = responsavel('Paulo PV', Funcao::PRE_VENDAS);
 });
 
 it('todas as páginas abrem (HTTP 200)', function () {
@@ -123,7 +122,7 @@ it('cadastra cliente e fornecedor pelas telas', function () {
 it('edita atividade e troca o cliente pela tela de detalhe (RN-28/RN-29)', function () {
     $this->post('/api/v1/projetos', ['cliente_id' => $this->clienteId, 'fornecedores' => [['fornecedor_id' => $this->fornecedorId]]]);
     $projetoId = DB::table('projetos')->value('id');
-    $outroAm = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create(['name' => 'Bia AM']);
+    $outroAm = responsavel('Bia AM', Funcao::ACCOUNT_MANAGER);
     $novoCliente = app(CadastrarCliente::class)->execute(new CadastrarClienteInput('Varejo Novo S.A.', 'Varejo Novo'));
 
     $tela = Livewire::test(DetalheProjeto::class, ['projetoId' => $projetoId])
@@ -162,7 +161,7 @@ it('edita atividade e troca o cliente pela tela de detalhe (RN-28/RN-29)', funct
 it('Dashboards › Todas as atividades: ordena por data de entrada (mais recentes primeiro) e filtra', function () {
     $outroCliente = app(CadastrarCliente::class)->execute(new CadastrarClienteInput('Varejo Novo S.A.', 'Varejo Novo'));
     $outroFornecedor = app(CadastrarFornecedor::class)->execute(new CadastrarFornecedorInput('Beta Ltda', 'Beta'));
-    $outroAm = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create(['name' => 'Bia AM']);
+    $outroAm = responsavel('Bia AM', Funcao::ACCOUNT_MANAGER);
 
     $registrar = function (string $cliente, string $fornecedor, array $atividade) {
         $projetoId = $this->postJson('/api/v1/projetos', ['cliente_id' => $cliente, 'fornecedores' => [['fornecedor_id' => $fornecedor]]])->json('id');
@@ -200,7 +199,7 @@ it('Dashboards › Todas as atividades: ordena por data de entrada (mais recente
 
     $apenas(['clienteId' => $outroCliente], 'Atividade Recente');
     $apenas(['fornecedorId' => $outroFornecedor], 'Atividade Recente');
-    $apenas(['tipo' => 'Comercial'], 'Atividade Recente');
+    $apenas(['tipo' => tipoAtividadeId('Comercial')], 'Atividade Recente');
     $apenas(['accountManagerId' => $outroAm->id], 'Atividade Recente');
     $apenas(['status' => 'Concluída'], 'Atividade Do Meio');
     $apenas(['somenteAtrasadas' => true], 'Atividade Antiga');
@@ -227,7 +226,7 @@ it('Dashboards › Painel operacional: indicadores, atrasadas por AM/PV e próxi
             return new DateTimeImmutable('2026-10-15');
         }
     });
-    $outroAm = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create(['name' => 'Bia AM']);
+    $outroAm = responsavel('Bia AM', Funcao::ACCOUNT_MANAGER);
 
     $projeto = fn (array $extra = []) => $this->postJson('/api/v1/projetos', $extra + ['cliente_id' => $this->clienteId, 'fornecedores' => [['fornecedor_id' => $this->fornecedorId]]])->json('id');
     $registrar = fn (string $projetoId, string $descricao, string $limite, array $extra = []) => $this->postJson("/api/v1/projetos/{$projetoId}/atividades", $extra + [
@@ -296,7 +295,7 @@ it('Dashboards › Prazos e entrega: % no prazo, execução e atraso no período
             return new DateTimeImmutable('2026-10-15');
         }
     });
-    $outroAm = User::factory()->comPapel(Papel::ACCOUNT_MANAGER)->create(['name' => 'Bia AM']);
+    $outroAm = responsavel('Bia AM', Funcao::ACCOUNT_MANAGER);
 
     $projeto = fn () => $this->postJson('/api/v1/projetos', ['cliente_id' => $this->clienteId, 'fornecedores' => [['fornecedor_id' => $this->fornecedorId]]])->json('id');
     $concluir = fn (string $projetoId, string $tipo, ?string $inicio, string $limite, string $termino, array $extra = []) => $this->postJson("/api/v1/projetos/{$projetoId}/atividades", $extra + [

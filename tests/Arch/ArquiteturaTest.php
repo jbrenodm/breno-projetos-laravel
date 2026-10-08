@@ -12,6 +12,7 @@ $camadasPuras = [
     'Src\Projetos\Domain', 'Src\Projetos\Application',
     'Src\Parceiros\Domain', 'Src\Parceiros\Application',
     'Src\Identidade\Domain', 'Src\Identidade\Application',
+    'Src\Responsaveis\Domain', 'Src\Responsaveis\Application',
 ];
 
 foreach ($camadasPuras as $camada) {
@@ -31,6 +32,16 @@ foreach (['Src\Projetos\Domain', 'Src\Projetos\Application'] as $camada) {
         ->expect($camada)
         ->not->toUse('Src\Projetos\Infrastructure')
         ->not->toUse('Src\Parceiros')
+        ->not->toUse('Src\Identidade')
+        ->not->toUse('Src\Responsaveis');
+}
+
+foreach (['Src\Responsaveis\Domain', 'Src\Responsaveis\Application'] as $camada) {
+    arch("{$camada} não conhece a Infraestrutura nem outros contextos")
+        ->expect($camada)
+        ->not->toUse('Src\Responsaveis\Infrastructure')
+        ->not->toUse('Src\Projetos')
+        ->not->toUse('Src\Parceiros')
         ->not->toUse('Src\Identidade');
 }
 
@@ -39,7 +50,8 @@ arch('Componentes Livewire não acessam banco/Infraestrutura diretamente')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->not->toUse('Src\Projetos\Infrastructure')
     ->not->toUse('Src\Parceiros\Infrastructure')
-    ->not->toUse('Src\Identidade\Infrastructure');
+    ->not->toUse('Src\Identidade\Infrastructure')
+    ->not->toUse('Src\Responsaveis\Infrastructure');
 
 arch('Sem código de debug esquecido')
     ->expect(['App', 'Src'])

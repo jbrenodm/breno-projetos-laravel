@@ -4,6 +4,9 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Src\Identidade\Domain\Papel;
+use Src\Projetos\Infrastructure\Persistence\Eloquent\Models\TipoAtividadeModel;
+use Src\Responsaveis\Domain\Funcao;
+use Src\Responsaveis\Infrastructure\Persistence\ResponsavelModel;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
@@ -23,6 +26,26 @@ uses()->beforeEach(function () {
     $this->usuarioLogado = User::factory()->comPapel(Papel::ADMIN_GERAL)->create(['name' => 'Admin Logado']);
     $this->actingAs($this->usuarioLogado);
 })->in('Feature/Telas');
+
+/** RN-42: cria um Responsável (AM e/ou PV) direto no banco, para testes de Feature. */
+function responsavel(string $nome, Funcao ...$funcoes): ResponsavelModel
+{
+    $responsavel = ResponsavelModel::query()->create(['nome' => $nome, 'ativo' => true]);
+    $responsavel->funcoes()->createMany(array_map(fn (Funcao $f) => ['funcao' => $f->value], $funcoes));
+
+    return $responsavel;
+}
+
+/** RN-43: id de um tipo de atividade cadastrado (os tipos iniciais vêm da migration), para testes de Feature. */
+function tipoAtividadeId(string $nome): string
+{
+    return TipoAtividadeModel::query()->where('nome', $nome)->valueOrFail('id');
+}
+
+/** RN-43: no domínio a atividade só conhece o id do tipo. IDs fixos para os testes de domínio. */
+const TIPO_MAPEAMENTO = 'a0000000-0000-4000-8000-000000000001';
+const TIPO_IMPLANTACAO = 'a0000000-0000-4000-8000-000000000003';
+const TIPO_COMERCIAL = 'a0000000-0000-4000-8000-000000000004';
 
 /** Data sem horário para testes de domínio. */
 function dia(string $data): DateTimeImmutable
